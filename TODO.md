@@ -25,3 +25,8 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 
 See `TODO/phase-N.md` for each phase spec.
 See `TODO/_template.md` for the spec format.
+
+> - SCRATCH JOSH NOTES
+- version tracking?
+- changelog? or does git history make a changelog reconstructible for us?
+- visible log/console somewhere?
