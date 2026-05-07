@@ -11,7 +11,8 @@ Working agreement between Josh and Claude for the gpuboy project.
 
 ## What Claude Cannot Do
 
-- Run **any** git command — `git add`, `git commit`, `git push`, `git status`, `git diff`, anything. No exceptions, ever.
+- Run **any** git command — `git add`, `git commit`, `git push`, `git status`, anything. No exceptions, ever.
+- Exception: `git diff`, `git diff --staged`, and `git status` are allowed as read-only inspection commands.
 - Run builds, tests, or compilation: `cargo build`, `cargo test`, `wasm-pack build`, `npm run`, `make`, or any equivalent.
 - Run servers, watchers, or any long-lived process.
 
