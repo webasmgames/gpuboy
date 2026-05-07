@@ -78,4 +78,4 @@ None. Phase 0 has no state.
 5. Push to `main`. Confirm CI goes green in the Actions tab.
 6. Open the GitHub Pages URL on a phone or secondary device. Confirm "gpuboy ready" appears in the mobile browser console.
 
-**Green light:** [ ]
+**Green light:** [x]
