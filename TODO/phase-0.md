@@ -60,14 +60,14 @@ None. Phase 0 has no state.
 
 ## Tasks
 
-- [ ] 1. Create workspace `Cargo.toml` at repo root: `[workspace]` with `members = ["crates/gpuboy-wasm"]`, `resolver = "2"`, and `[workspace.lints.clippy] all = "warn"`. *(housekeeping)*
-- [ ] 2. Create `crates/gpuboy-wasm/Cargo.toml`: `crate-type = ["cdylib"]`, `wasm-bindgen` and `console_error_panic_hook` deps, `web-sys` dep with `console` feature, and `[lints] workspace = true`. *(req 1)*
-- [ ] 3. Write `crates/gpuboy-wasm/src/lib.rs`: set panic hook on init, export a `run()` function via `#[wasm_bindgen]` that logs "gpuboy ready" via `web_sys::console::log_1`. *(req 1, 2)*
-- [ ] 4. Write `www/index.js`: async init that imports the wasm module from `../pkg/gpuboy_wasm.js`, calls `run()`, and catches/displays any error in the DOM. *(req 2, 3)*
-- [ ] 5. Write `www/index.html`: minimal shell with a `<canvas id="screen">` (160×144, scaled 3× via CSS) and a `<div id="error">` for the error path. Loads `index.js` as a module. *(req 2, 3)*
-- [ ] 6. Add `pkg/` and `node_modules/` to `.gitignore`. *(housekeeping)*
-- [ ] 7. Create `preflight.sh`: runs `cargo fmt -- --check`, `cargo clippy`, and `wasm-pack build crates/gpuboy-wasm --target web` in sequence, exits non-zero on first failure, prints a clear pass/fail summary. Include `cargo test` as a commented-out placeholder. *(housekeeping)*
-- [ ] 8. Create `.github/workflows/ci.yml`: on push to `main`, runs the same steps as `preflight.sh`, then deploys `www/` + `pkg/` to GitHub Pages via `actions/deploy-pages`. *(req 4, 5)*
+- [x] 1. Create workspace `Cargo.toml` at repo root: `[workspace]` with `members = ["crates/gpuboy-wasm"]`, `resolver = "2"`, and `[workspace.lints.clippy] all = "warn"`. *(housekeeping)*
+- [x] 2. Create `crates/gpuboy-wasm/Cargo.toml`: `crate-type = ["cdylib"]`, `wasm-bindgen` and `console_error_panic_hook` deps, `web-sys` dep with `console` feature, and `[lints] workspace = true`. *(req 1)*
+- [x] 3. Write `crates/gpuboy-wasm/src/lib.rs`: set panic hook on init, export a `run()` function via `#[wasm_bindgen]` that logs "gpuboy ready" via `web_sys::console::log_1`. *(req 1, 2)*
+- [x] 4. Write `www/index.js`: async init that imports the wasm module from `../pkg/gpuboy_wasm.js`, calls `run()`, and catches/displays any error in the DOM. *(req 2, 3)*
+- [x] 5. Write `www/index.html`: minimal shell with a `<canvas id="screen">` (160×144, scaled 3× via CSS) and a `<div id="error">` for the error path. Loads `index.js` as a module. *(req 2, 3)*
+- [x] 6. Add `pkg/` and `node_modules/` to `.gitignore`. *(housekeeping)*
+- [x] 7. Create `preflight.sh`: runs `cargo fmt -- --check`, `cargo clippy`, and `wasm-pack build crates/gpuboy-wasm --target web` in sequence, exits non-zero on first failure, prints a clear pass/fail summary. Include `cargo test` as a commented-out placeholder. *(housekeeping)*
+- [x] 8. Create `.github/workflows/ci.yml`: on push to `main`, runs the same steps as `preflight.sh`, then deploys `www/` + `pkg/` to GitHub Pages via `actions/deploy-pages`. *(req 4, 5)*
 
 ## Manual Testing
 

@@ -1,0 +1,6 @@
+[workspace]
+members = ["crates/gpuboy-wasm"]
+resolver = "2"
+
+[workspace.lints.clippy]
+all = "warn"
