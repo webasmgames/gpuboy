@@ -11,7 +11,7 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | Phase | Name | Notes | Status |
 |---|---|---|---|
 | 0 | Project Scaffold | Rust + wasm-pack + browser shell + CI + GitHub Pages | ✅ |
-| 1 | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | 🔲 |
+| 1 | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | ✅ |
 | 2 | CPU + Timer + Interrupts + Serial Stub | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | 🔲 |
 | 3 | PPU + WebGPU Renderer | FIFO pixel rendering, placeholder frame clock | 🔲 |
 | 4 | Web UI | ROM file picker, pause/reset, display scaling | 🔲 |

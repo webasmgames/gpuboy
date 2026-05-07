@@ -7,7 +7,8 @@ cargo fmt -- --check
 echo "==> cargo clippy"
 cargo clippy -- -D warnings
 
-# cargo test  # placeholder for future phases
+echo "==> cargo test"
+cargo test
 
 echo "==> wasm-pack build crates/gpuboy-wasm --target web"
 wasm-pack build crates/gpuboy-wasm --target web --out-dir ../../pkg

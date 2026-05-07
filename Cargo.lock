@@ -49,10 +49,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuboy-core"
+version = "0.1.0"
+
+[[package]]
 name = "gpuboy-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "gpuboy-core",
  "wasm-bindgen",
  "web-sys",
 ]

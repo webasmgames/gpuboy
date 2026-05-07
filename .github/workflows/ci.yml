@@ -36,6 +36,20 @@ jobs:
       - name: clippy
         run: cargo clippy -- -D warnings
 
+      - name: Cache test ROMs
+        id: cache-test-roms
+        uses: actions/cache@v4
+        with:
+          path: tests/roms
+          key: game-boy-test-roms-v7.0
+
+      - name: Download test ROMs
+        if: steps.cache-test-roms.outputs.cache-hit != 'true'
+        run: bash scripts/download-test-roms.sh
+
+      - name: test
+        run: cargo test
+
       - name: wasm-pack build
         run: wasm-pack build crates/gpuboy-wasm --target web --out-dir ../../pkg
 
