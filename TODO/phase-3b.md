@@ -459,25 +459,25 @@ async function main() {
 
 ## Tasks
 
-- [ ] 1. In the root `Cargo.toml`, add `"crates/gpuboy-render"` to the `[workspace] members` list. *(architecture)*
+- [x] 1. In the root `Cargo.toml`, add `"crates/gpuboy-render"` to the `[workspace] members` list. *(architecture)*
 
-- [ ] 2. Create `crates/gpuboy-render/Cargo.toml` with the content from §`gpuboy-render` Cargo.toml above. *(architecture)*
+- [x] 2. Create `crates/gpuboy-render/Cargo.toml` with the content from §`gpuboy-render` Cargo.toml above. *(architecture)*
 
-- [ ] 3. Create `crates/gpuboy-render/src/lib.rs`. Start with `#![cfg(target_arch = "wasm32")]`. Define `const SHADER_SRC: &str` with the full WGSL from §WGSL Shaders. Define the `WgpuRenderer` struct with the six fields from §`WgpuRenderer` struct. *(req 3, 4)*
+- [x] 3. Create `crates/gpuboy-render/src/lib.rs`. Start with `#![cfg(target_arch = "wasm32")]`. Define `const SHADER_SRC: &str` with the full WGSL from §WGSL Shaders. Define the `WgpuRenderer` struct with the six fields from §`WgpuRenderer` struct. *(req 3, 4)*
 
-- [ ] 4. Implement `impl WgpuRenderer { pub async fn new(canvas: web_sys::HtmlCanvasElement) -> Result<Self, String> }` following the 15-step sequence in §`WgpuRenderer::new` setup sequence exactly. *(req 1, 3, 6)*
+- [x] 4. Implement `impl WgpuRenderer { pub async fn new(canvas: web_sys::HtmlCanvasElement) -> Result<Self, String> }` following the 15-step sequence in §`WgpuRenderer::new` setup sequence exactly. *(req 1, 3, 6)*
 
-- [ ] 5. Implement `impl WgpuRenderer { pub fn render_frame(&self, fb: &[u8]) }` following the 11-step sequence in §`WgpuRenderer::render_frame` sequence. *(req 3, 4, 5)*
+- [x] 5. Implement `impl WgpuRenderer { pub fn render_frame(&self, fb: &[u8]) }` following the 11-step sequence in §`WgpuRenderer::render_frame` sequence. *(req 3, 4, 5)*
 
-- [ ] 6. Update `crates/gpuboy-wasm/Cargo.toml`: add `gpuboy-render`, `wasm-bindgen-futures`, and `js-sys` dependencies; add `"Window"`, `"Document"`, `"HtmlCanvasElement"` to the `web-sys` features list. See §`gpuboy-wasm` additions for the exact additions. *(architecture)*
+- [x] 6. Update `crates/gpuboy-wasm/Cargo.toml`: add `gpuboy-render`, `wasm-bindgen-futures`, and `js-sys` dependencies; add `"Window"`, `"Document"`, `"HtmlCanvasElement"` to the `web-sys` features list. See §`gpuboy-wasm` additions for the exact additions. *(architecture)*
 
-- [ ] 7. Update `crates/gpuboy-wasm/src/lib.rs`: add `use gpuboy_render::WgpuRenderer` and `use wasm_bindgen::JsCast`; add the `RENDERER` thread-local static; add `init_renderer` and `render_frame_wgpu` exports. Keep all existing code unchanged. See §`gpuboy-wasm` additions for the exact code. *(req 1, 2, 3)*
+- [x] 7. Update `crates/gpuboy-wasm/src/lib.rs`: add `use gpuboy_render::WgpuRenderer` and `use wasm_bindgen::JsCast`; add the `RENDERER` thread-local static; add `init_renderer` and `render_frame_wgpu` exports. Keep all existing code unchanged. See §`gpuboy-wasm` additions for the exact code. *(req 1, 2, 3)*
 
-- [ ] 8. Update `www/index.html`: add `#screen-2d` canvas and `#renderer-toggle` button; update the CSS selector to cover both canvases. See §HTML changes for the exact additions. *(req 7)*
+- [x] 8. Update `www/index.html`: add `#screen-2d` canvas and `#renderer-toggle` button; update the CSS selector to cover both canvases. See §HTML changes for the exact additions. *(req 7)*
 
-- [ ] 9. Rewrite `www/index.js` following §JS changes: updated import, keep `render2d`, update `main()` to try wgpu, show/hide canvases, wire toggle button, dispatch in loop. *(req 1, 2, 5, 7)*
+- [x] 9. Rewrite `www/index.js` following §JS changes: updated import, keep `render2d`, update `main()` to try wgpu, show/hide canvases, wire toggle button, dispatch in loop. *(req 1, 2, 5, 7)*
 
-- [ ] 10. Verify `putImageData` does not appear in the wgpu code path: it must only be called inside `render2d()`, which is only called in the loop when `useWebGpu` is false. *(req 5)*
+- [x] 10. Verify `putImageData` does not appear in the wgpu code path: it must only be called inside `render2d()`, which is only called in the loop when `useWebGpu` is false. *(req 5)*
 
 ## Manual Testing
 
@@ -491,4 +491,4 @@ async function main() {
 8. Test fallback: add `return Err("disabled for test".to_string());` as the first line of `WgpuRenderer::new`, rebuild. Confirm `#error` shows a message, `#screen-2d` is visible, 2D canvas renders, toggle button is hidden. Remove the test line.
 9. Pixel-compare both renderers by toggling while a ROM runs — output should look identical.
 
-**Green light:** [ ]
+**Green light:** [x]

@@ -6,13 +6,15 @@
     <title>gpuboy</title>
     <style>
         body { background: #111; display: flex; flex-direction: column; align-items: center; padding: 1rem; }
-        #screen { width: 480px; height: 432px; image-rendering: pixelated; }
+        #screen, #screen-2d { width: 480px; height: 432px; image-rendering: pixelated; }
         #error { color: #f44; font-family: monospace; padding: 1rem; white-space: pre-wrap; display: none; }
     </style>
 </head>
 <body>
     <input type="file" id="rom-picker" accept=".gb,.gbc">
     <canvas id="screen" width="160" height="144"></canvas>
+    <canvas id="screen-2d" width="160" height="144" style="display: none;"></canvas>
+    <button id="renderer-toggle" style="display: none;">Switch to 2D canvas</button>
     <div id="error"></div>
     <script type="module" src="index.js"></script>
 </body>

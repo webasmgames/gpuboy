@@ -14,12 +14,12 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 1 | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | ✅ |
 | 2 | CPU + Timer + Interrupts + Serial Stub | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | ✅ |
 | 3a | PPU Core | Scanline renderer, RGBA framebuffer, 2D canvas display | ✅ |
-| [3b](TODO/phase-3b.md) | WebGPU Renderer | Replace 2D canvas with WebGPU texture + fullscreen quad | 🔲 |
-| 4 | Web UI | ROM file picker, pause/reset, display scaling | 🔲 |
-| 5 | Joypad Input | Keyboard + gamepad | 🔲 |
-| 6 | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | 🔲 |
-| 7 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
-| 8 | APU + Web Audio | 4 channels, Web Audio as master clock | 🔲 |
+| [3b](TODO/phase-3b.md) | WebGPU Renderer | Replace 2D canvas with WebGPU texture + fullscreen quad | ✅ |
+| 4 | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | 🔲 |
+| 5 | APU + Web Audio | 4 channels, Web Audio as master clock | 🔲 |
+| 6 | Web UI | ROM file picker, pause/reset, display scaling, touch controls | 🔲 |
+| 7 | Joypad Input | Keyboard + gamepad | 🔲 |
+| 8 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
 | 9 | Test ROM Validation | Blargg + Mooneye suites | 🔲 |
 | 10 | Game Boy Color | stretch | 🔲 |
 | 11 | Stretch Goals | Shaders, rewind, save states, debugger, link cable | 🔲 |
@@ -33,4 +33,5 @@ See `TODO/_template.md` for the spec format.
 - version tracking?
 - changelog? or does git history make a changelog reconstructible for us?
 - visible log/console somewhere?
+- input should be DPAD/Button images around screen so u can game on mobile
 - make a utube/tiktok series on it ?

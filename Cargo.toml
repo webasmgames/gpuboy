@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/gpuboy-wasm", "crates/gpuboy-core"]
+members = ["crates/gpuboy-wasm", "crates/gpuboy-core", "crates/gpuboy-render"]
 resolver = "2"
 
 [workspace.lints.clippy]

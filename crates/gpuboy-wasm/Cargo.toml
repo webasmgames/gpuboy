@@ -10,10 +10,13 @@ crate-type = ["cdylib"]
 wasm-bindgen = "0.2"
 console_error_panic_hook = "0.1"
 gpuboy-core = { path = "../gpuboy-core" }
+gpuboy-render = { path = "../gpuboy-render" }
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
 
 [dependencies.web-sys]
 version = "0.3"
-features = ["console"]
+features = ["console", "Window", "Document", "HtmlCanvasElement"]
 
 [lints]
 workspace = true

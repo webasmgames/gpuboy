@@ -1,0 +1,14 @@
+[package]
+name = "gpuboy-render"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "gpuboy_render"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "29", default-features = false, features = ["wgsl", "webgpu"] }
+web-sys = { version = "0.3", features = ["HtmlCanvasElement"] }
+
+[lints]
+workspace = true
