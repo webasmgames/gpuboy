@@ -28,6 +28,7 @@ See `TODO/phase-N.md` (or `TODO/phase-Na.md` / `TODO/phase-Nb.md`) for each phas
 See `TODO/_template.md` for the spec format.
 
 > - SCRATCH JOSH NOTES
+- some sample roms to load in a dropdown box ? even the testing ones could maybe ref github?
 - make a gpuboy background image...
 - version tracking?
 - changelog? or does git history make a changelog reconstructible for us?

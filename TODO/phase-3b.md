@@ -1,101 +1,271 @@
-# Phase 3b: WebGPU Renderer
+# Phase 3b: WebGPU Renderer (Rust/wgpu)
 
 ## Overview
 
-Replaces the Phase 3a `putImageData` 2D canvas rendering path with a WebGPU renderer. The WASM side is unchanged — `gpuboy-wasm` continues to export `get_framebuffer() -> Vec<u8>` as a flat 160×144 RGBA byte array. All WebGPU code lives in `www/index.js`. Each frame the framebuffer is uploaded as a `GPUTexture` and drawn to the canvas via a fullscreen triangle with a passthrough WGSL shader. This phase establishes the WebGPU foundation that future phases (scanline shaders, LCD grid, color correction) will build upon.
+Replaces the Phase 3a `putImageData` 2D canvas rendering path with a Rust/wgpu WebGPU renderer. Emulator logic in `gpuboy-core` is unchanged. A new `gpuboy-render` crate wraps `wgpu` and exposes a `WgpuRenderer` struct. `gpuboy-wasm` gets two new exports: `init_renderer(canvas_id: &str) -> Promise` (async) and `render_frame_wgpu(fb: &[u8])`. The JS shell tries wgpu first; on failure it falls back to the Phase 3a `putImageData` path. A toggle button allows switching between renderers at runtime (two canvases, one per renderer, swapped via CSS `display`).
 
 ## Requirements
 
-1. WHEN the page loads and WebGPU is available (`navigator.gpu` is defined), THEN the emulator initializes a WebGPU adapter, device, and canvas context before entering the render loop.
+1. WHEN the page loads and WebGPU is available, THEN the emulator initializes a wgpu adapter, device, and canvas surface before entering the render loop.
 
-2. WHEN WebGPU is unavailable (`navigator.gpu` is undefined or `requestAdapter()` returns null), THEN a human-readable error message is displayed in the DOM's `#error` element, the 2D canvas fallback path activates, and no uncaught exception is thrown.
+2. WHEN WebGPU is unavailable (adapter request returns None) or `init_renderer` rejects, THEN a human-readable error message is displayed in `#error`, the 2D canvas fallback activates, and no uncaught exception is thrown.
 
-3. WHEN a frame is rendered via WebGPU, THEN the 160×144 RGBA framebuffer returned by `get_framebuffer()` is uploaded to a GPU texture and drawn to the canvas as a fullscreen quad with nearest-neighbor sampling.
+3. WHEN a frame is rendered via WebGPU, THEN the 160×144 RGBA framebuffer is uploaded to a GPU texture and drawn to the canvas as a fullscreen triangle with nearest-neighbor sampling.
 
-4. WHEN the WebGPU renderer is active, THEN the visual output is pixel-perfect: each Game Boy pixel maps to exactly one logical canvas pixel (the canvas is still 160×144, CSS-scaled 3× to 480×432 with `image-rendering: pixelated`), with no blurring or color shifts.
+4. WHEN the WebGPU renderer is active, THEN the visual output is pixel-perfect: each Game Boy pixel maps to exactly one logical canvas pixel (160×144 canvas, CSS-scaled 3× to 480×432 with `image-rendering: pixelated`), with no blurring or color shifts.
 
 5. WHEN the WebGPU renderer is active, THEN the `putImageData` 2D canvas rendering path is not used.
 
-6. WHEN a WebGPU device error occurs after initialization (e.g. device lost), THEN the error is logged to the browser console via `console.error`.
+6. WHEN a WebGPU device error occurs after initialization, THEN the error is logged via `console.error`.
+
+7. WHEN both renderers have initialized successfully, THEN a toggle button is visible and clicking it switches the active renderer without reloading the page.
 
 ## Acceptance Criteria
 
-- [ ] Loading a ROM and running the emulator displays game pixels correctly with no visual difference from Phase 3a's output.
+- [ ] Loading a ROM and running the emulator displays game pixels correctly via the wgpu path.
 - [ ] Pixels are sharp (no bilinear blurring) at 3× CSS scale.
-- [ ] Browser DevTools shows WebGPU activity (Chromium: Application > GPU; or the WebGPU API calls appear in the timeline).
-- [ ] Deleting `navigator.gpu` before page init (via a DevTools snippet or browser flag) causes the `#error` div to display a WebGPU unavailability message and the emulator falls back to the 2D canvas path and still renders.
-- [ ] No uncaught JS exceptions in the console under either the WebGPU or fallback path.
-- [ ] The 2D canvas `putImageData` call does not appear anywhere in the WebGPU rendering code path.
+- [ ] Browser DevTools shows WebGPU activity.
+- [ ] When wgpu init fails (simulated by returning early from `WgpuRenderer::new`), `#error` shows a message and the 2D canvas fallback renders correctly with no uncaught exceptions.
+- [ ] `putImageData` is never called in the wgpu render path.
+- [ ] Toggle button (visible only when wgpu initialized) switches between wgpu and 2D canvas at runtime; both paths render correctly.
 
 ## Design
 
 ### Architecture
 
-All changes are confined to `www/index.js`. No Rust or WASM changes are needed.
-
 ```
-www/
-  index.js   — WebGPU init, texture/pipeline setup, per-frame renderFrame(); 2D fallback
-  index.html — unchanged
-crates/
-  gpuboy-wasm/   — unchanged; still exports get_framebuffer() -> Vec<u8>
-  gpuboy-core/   — unchanged
-```
-
-The JS module is structured as three layers:
-
-1. **WASM layer** — existing: `init()`, `run()`, `load_rom()`, `step_frame()`, `get_framebuffer()`
-2. **Renderer layer** — new: `initWebGPU()` returns a renderer object `{ renderFrame(fb) }`, or null on failure
-3. **Main loop** — updated: after each `step_frame()` call, dispatch to the renderer object's `renderFrame` if WebGPU succeeded, otherwise use the 2D canvas fallback
-
-WebGPU setup sequence (all in `initWebGPU()`):
-```
-navigator.gpu.requestAdapter()
-  → adapter.requestDevice()
-  → canvas.getContext('webgpu')
-  → context.configure({ device, format })
-  → create GPUTexture (160×144, rgba8unorm, reused each frame)
-  → create GPUSampler (magFilter: 'nearest', minFilter: 'nearest')
-  → create GPURenderPipeline (vertex + fragment WGSL)
-  → create GPUBindGroupLayout, GPUBindGroup
-  → return { renderFrame }
+Cargo workspace:
+  crates/
+    gpuboy-core/     — unchanged
+    gpuboy-render/   — NEW: WgpuRenderer (wgpu crate, WASM-only lib)
+    gpuboy-wasm/     — thin WASM boundary; adds init_renderer + render_frame_wgpu exports
+  www/
+    index.html       — adds #screen-2d canvas + toggle button
+    index.js         — tries wgpu, falls back to 2D, toggle logic
 ```
 
-Per-frame `renderFrame(framebuffer)`:
-```
-device.queue.writeTexture(...)   // upload framebuffer bytes
-encoder = device.createCommandEncoder()
-pass = encoder.beginRenderPass({ colorAttachments: [{ view: context.getCurrentTexture().createView(), ... }] })
-pass.setPipeline(pipeline)
-pass.setBindGroup(0, bindGroup)
-pass.draw(3)                     // fullscreen triangle, 3 vertices, no vertex buffer
-pass.end()
-device.queue.submit([encoder.finish()])
-```
+`gpuboy-render` is a plain Rust `lib` crate (not a cdylib). Its entire body is gated with `#![cfg(target_arch = "wasm32")]` so it compiles only when building for WASM. `gpuboy-wasm` stores the renderer in a second `thread_local! { static }` alongside the existing `EMULATOR` static.
 
-### Data Structures
+### `gpuboy-render` Cargo.toml
 
-No new Rust types. The JS renderer state is captured in the closure returned by `initWebGPU()`:
+```toml
+[package]
+name = "gpuboy-render"
+version = "0.1.0"
+edition = "2021"
 
-```js
-// State owned by the closure:
-let device         // GPUDevice
-let context        // GPUCanvasContext
-let pipeline       // GPURenderPipeline
-let bindGroup      // GPUBindGroup
-let texture        // GPUTexture — reused each frame
-let sampler        // GPUSampler — created once
+[lib]
+name = "gpuboy_render"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "0.20", default-features = false, features = ["wgsl", "webgpu"] }
+web-sys = { version = "0.3", features = ["HtmlCanvasElement"] }
+
+[lints]
+workspace = true
 ```
 
-The framebuffer is a `Uint8Array` of length `160 * 144 * 4 = 92160` bytes in RGBA order, exactly as returned by `get_framebuffer()`.
+Use the latest compatible `wgpu` version; `"0.20"` is the minimum known to expose `SurfaceTarget::Canvas` and `on_uncaptured_error`. Verify feature flag names against the installed version's docs — the two required features are WGSL shader support and the WebGPU backend.
+
+### `WgpuRenderer` struct
+
+```rust
+pub struct WgpuRenderer {
+    device:     wgpu::Device,
+    queue:      wgpu::Queue,
+    surface:    wgpu::Surface<'static>,
+    pipeline:   wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    texture:    wgpu::Texture,
+}
+```
+
+### `WgpuRenderer::new` setup sequence
+
+`pub async fn new(canvas: web_sys::HtmlCanvasElement) -> Result<Self, String>`
+
+Execute these steps in order; return `Err(description)` on any failure:
+
+1. `let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor { backends: wgpu::Backends::BROWSER_WEBGPU, ..Default::default() });`
+2. `let surface = instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas)).map_err(|e| e.to_string())?;`
+3. `let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions { compatible_surface: Some(&surface), ..Default::default() }).await.ok_or_else(|| "no suitable WebGPU adapter".to_string())?;`
+4. `let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor::default(), None).await.map_err(|e| e.to_string())?;`
+5. Attach error handler (req 6):
+   ```rust
+   device.on_uncaptured_error(Box::new(|e| {
+       web_sys::console::error_1(&format!("WebGPU device error: {:?}", e).into());
+   }));
+   ```
+6. `let caps = surface.get_capabilities(&adapter);`
+   `let format = caps.formats[0];`
+7. Configure surface:
+   ```rust
+   surface.configure(&device, &wgpu::SurfaceConfiguration {
+       usage:    wgpu::TextureUsages::RENDER_ATTACHMENT,
+       format,
+       width:    160,
+       height:   144,
+       present_mode: wgpu::PresentMode::Fifo,
+       alpha_mode:   caps.alpha_modes[0],
+       view_formats: vec![],
+       desired_maximum_frame_latency: 2,
+   });
+   ```
+8. Create framebuffer texture:
+   ```rust
+   let texture = device.create_texture(&wgpu::TextureDescriptor {
+       label: None,
+       size: wgpu::Extent3d { width: 160, height: 144, depth_or_array_layers: 1 },
+       mip_level_count: 1,
+       sample_count:    1,
+       dimension:       wgpu::TextureDimension::D2,
+       format:          wgpu::TextureFormat::Rgba8Unorm,
+       usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+       view_formats: &[],
+   });
+   ```
+9. Create nearest sampler:
+   ```rust
+   let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+       mag_filter: wgpu::FilterMode::Nearest,
+       min_filter: wgpu::FilterMode::Nearest,
+       ..Default::default()
+   });
+   ```
+10. Create shader module: `device.create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source: wgpu::ShaderSource::Wgsl(SHADER_SRC.into()) })`.
+11. Create bind group layout:
+    ```rust
+    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: None,
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding:    0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type:    wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled:   false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding:    1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    });
+    ```
+12. `let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: None, bind_group_layouts: &[&bgl], push_constant_ranges: &[] });`
+13. Create render pipeline:
+    ```rust
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label:  None,
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module:      &shader,
+            entry_point: Some("vs_main"),
+            buffers:     &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module:      &shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend:      None,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample:   wgpu::MultisampleState::default(),
+        multiview:     None,
+        cache:         None,
+    });
+    ```
+    Note: `entry_point: Some(...)` is the wgpu 0.20+ API. Earlier versions use `entry_point: "..."` (a `&str`). `compilation_options` and `cache` were added in 0.20; omit them if using an older version.
+14. Create bind group:
+    ```rust
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label:  None,
+        layout: &bgl,
+        entries: &[
+            wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&texture.create_view(&Default::default())) },
+            wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&sampler) },
+        ],
+    });
+    ```
+15. Return `Ok(WgpuRenderer { device, queue, surface, pipeline, bind_group, texture })`.
+
+### `WgpuRenderer::render_frame` sequence
+
+`pub fn render_frame(&self, fb: &[u8])` — `fb` is `160 * 144 * 4 = 92160` bytes, RGBA.
+
+1. Upload framebuffer:
+   ```rust
+   self.queue.write_texture(
+       wgpu::ImageCopyTexture {
+           texture:  &self.texture,
+           mip_level: 0,
+           origin:   wgpu::Origin3d::ZERO,
+           aspect:   wgpu::TextureAspect::All,
+       },
+       fb,
+       wgpu::ImageDataLayout {
+           offset:         0,
+           bytes_per_row:  Some(160 * 4),
+           rows_per_image: None,
+       },
+       wgpu::Extent3d { width: 160, height: 144, depth_or_array_layers: 1 },
+   );
+   ```
+2. `let frame = self.surface.get_current_texture().expect("surface texture");`
+3. `let view = frame.texture.create_view(&Default::default());`
+4. `let mut encoder = self.device.create_command_encoder(&Default::default());`
+5. Begin render pass:
+   ```rust
+   let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+       label: None,
+       color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+           view:           &view,
+           resolve_target: None,
+           ops: wgpu::Operations {
+               load:  wgpu::LoadOp::Clear(wgpu::Color::BLACK), // DontCare not available in all versions; Clear is safe
+               store: wgpu::StoreOp::Store,
+           },
+       })],
+       depth_stencil_attachment: None,
+       timestamp_writes:         None,
+       occlusion_query_set:      None,
+   });
+   ```
+   Note on `LoadOp`: the fullscreen triangle covers every pixel so the clear color is never visible. Use `wgpu::LoadOp::Clear(wgpu::Color::BLACK)` for compatibility; some wgpu versions lack `LoadOp::DontCare`.
+6. `pass.set_pipeline(&self.pipeline);`
+7. `pass.set_bind_group(0, &self.bind_group, &[]);`
+8. `pass.draw(0..3, 0..1);`
+9. `drop(pass);`
+10. `self.queue.submit(std::iter::once(encoder.finish()));`
+11. `frame.present();`
 
 ### WGSL Shaders
 
-Both shaders are defined as inline JS template literal strings and compiled into a single `GPUShaderModule`.
-
-**Vertex shader** — fullscreen triangle trick, no vertex buffer needed:
+Define as `const SHADER_SRC: &str` in `gpuboy-render/src/lib.rs`. Identical to the JS design — fullscreen triangle, UVs as vertex output. UV values at the three vertices are intentionally outside [0,1]; the GPU clips the triangle and interpolated UVs are exactly [0,1] at the canvas corners. Do not "fix" the out-of-range values.
 
 ```wgsl
+struct VsOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32) -> VsOut {
     var pos = array<vec2<f32>, 3>(
@@ -113,170 +283,212 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VsOut {
     out.uv = uv[vi];
     return out;
 }
-```
 
-UV convention: `(0,0)` = top-left, `(1,1)` = bottom-right of the canvas. The fullscreen triangle extends beyond the clip boundary (the GPU clips it), so UVs must cover exactly `[0,1]×[0,1]` at the canvas edges. Passing UVs as a vertex output avoids the fragile `frag_pos / canvas_size` division in the fragment shader.
-
-Note: The UV values at the vertex positions themselves are outside [0,1] (v=-1 at vertex 0, u=2 at vertex 2). This is intentional. The GPU clips the triangle to the NDC square, and linear interpolation produces UVs in [0,1] exactly at the canvas corners. Do not "fix" the out-of-range values — they are required for the math to work.
-
-**Fragment shader:**
-
-```wgsl
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return textureSample(tex, samp, in.uv);
 }
 ```
 
-**Struct and binding declarations (combined shader module):**
+### `gpuboy-wasm` additions
 
-```wgsl
-struct VsOut {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
+**New deps to add to `crates/gpuboy-wasm/Cargo.toml`:**
+```toml
+gpuboy-render        = { path = "../gpuboy-render" }
+wasm-bindgen-futures = "0.4"
+js-sys               = "0.3"
+```
+Also extend the existing `web-sys` features list to include `"Window"`, `"Document"`, `"HtmlCanvasElement"`.
+
+**New exports to add to `crates/gpuboy-wasm/src/lib.rs`:**
+
+Add at the top alongside existing imports:
+```rust
+use gpuboy_render::WgpuRenderer;
+use wasm_bindgen::JsCast;
+```
+
+Add a second thread-local static below `EMULATOR`:
+```rust
+thread_local! {
+    static RENDERER: RefCell<Option<WgpuRenderer>> = const { RefCell::new(None) };
+}
+```
+
+Add two new `#[wasm_bindgen]` functions (keep all existing functions unchanged):
+
+```rust
+#[wasm_bindgen]
+pub fn init_renderer(canvas_id: &str) -> js_sys::Promise {
+    let canvas_id = canvas_id.to_string();
+    wasm_bindgen_futures::future_to_promise(async move {
+        let window = web_sys::window()
+            .ok_or_else(|| JsValue::from_str("no window"))?;
+        let document = window.document()
+            .ok_or_else(|| JsValue::from_str("no document"))?;
+        let canvas: web_sys::HtmlCanvasElement = document
+            .get_element_by_id(&canvas_id)
+            .ok_or_else(|| JsValue::from_str(&format!("#{} not found", canvas_id)))?
+            .dyn_into()
+            .map_err(|_| JsValue::from_str("element is not a canvas"))?;
+        let renderer = WgpuRenderer::new(canvas).await
+            .map_err(|e| JsValue::from_str(&e))?;
+        RENDERER.with(|r| *r.borrow_mut() = Some(renderer));
+        Ok(JsValue::undefined())
+    })
 }
 
-@group(0) @binding(0) var tex: texture_2d<f32>;
-@group(0) @binding(1) var samp: sampler;
+#[wasm_bindgen]
+pub fn render_frame_wgpu(fb: &[u8]) {
+    RENDERER.with(|r| {
+        if let Some(renderer) = r.borrow().as_ref() {
+            renderer.render_frame(fb);
+        }
+    });
+}
+```
+
+### HTML changes (`www/index.html`)
+
+Add a second canvas and a toggle button. Existing `#screen` becomes the WebGPU canvas (unchanged). Add:
+
+```html
+<canvas id="screen-2d" width="160" height="144" style="display: none;"></canvas>
+<button id="renderer-toggle" style="display: none;">Switch to 2D canvas</button>
+```
+
+Place `#screen-2d` immediately after `#screen`, and the button after both canvases, before `#error`.
+
+Add `#screen-2d` to the CSS rule so it shares the same size and pixelated rendering:
+```css
+#screen, #screen-2d { width: 480px; height: 432px; image-rendering: pixelated; }
+```
+
+### JS changes (`www/index.js`)
+
+Updated import line:
+```js
+import init, { run, load_rom, step_frame, get_framebuffer, init_renderer, render_frame_wgpu }
+    from "../pkg/gpuboy_wasm.js";
+```
+
+Keep `render2d(ctx2d, fb)` (the 2D fallback, sole user of `putImageData`) unchanged.
+
+`main()` structure:
+
+```js
+async function main() {
+    await init();
+    run();
+
+    // Attempt WebGPU init via Rust/wgpu
+    let useWebGpu = false;
+    try {
+        await init_renderer('screen');
+        useWebGpu = true;
+    } catch (err) {
+        console.error('wgpu init failed:', err);
+        const errEl = document.getElementById('error');
+        if (errEl) {
+            errEl.textContent = `WebGPU unavailable: ${err}. Falling back to 2D canvas.`;
+            errEl.style.display = 'block';
+        }
+    }
+
+    // Show the active canvas, hide the other
+    document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
+    document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
+
+    // 2D context — always acquired (the 2D canvas is never used as a webgpu context)
+    const ctx2d = document.getElementById('screen-2d').getContext('2d');
+
+    // Toggle button — only shown when wgpu succeeded
+    if (useWebGpu) {
+        const btn = document.getElementById('renderer-toggle');
+        btn.style.display = 'inline';
+        btn.addEventListener('click', () => {
+            useWebGpu = !useWebGpu;
+            document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
+            document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
+            btn.textContent = useWebGpu ? 'Switch to 2D canvas' : 'Switch to WebGPU';
+        });
+    }
+
+    let animationId = null;
+
+    function loop() {
+        step_frame();
+        const fb = get_framebuffer();
+        if (useWebGpu) {
+            render_frame_wgpu(fb);
+        } else {
+            render2d(ctx2d, fb);
+        }
+        animationId = requestAnimationFrame(loop);
+    }
+
+    document.getElementById('rom-picker').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onerror = (ev) => console.error('FileReader error:', ev.target.error);
+        reader.onload = (ev) => {
+            const data = new Uint8Array(ev.target.result);
+            load_rom(data);
+            if (animationId !== null) cancelAnimationFrame(animationId);
+            loop();
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
 ```
 
 ### Key Decisions
 
-**All WebGPU in JS, not Rust.** The `wgpu` Rust crate is large, pulls in heavy dependencies, and targets native + WASM with a high configuration burden. Doing it in JS keeps WASM binary size down, avoids re-architecture of `gpuboy-wasm`, and lets Phase 3b ship faster. Future shader phases can stay in JS as well.
+**Rust/wgpu instead of JS WebGPU.** All GPU logic lives in Rust — consistent with the rest of the emulator. The `wgpu` crate provides a safe, typed API over raw WebGPU. Future shader phases (scanline effects, LCD grid) stay in Rust.
 
-**Texture reused each frame, not recreated.** Creating a `GPUTexture` each frame allocates GPU memory on every call. Instead, allocate once in `initWebGPU()` and call `writeTexture` each frame. This is the standard pattern for streaming video/emulator output.
+**New `gpuboy-render` crate.** Keeps `gpuboy-wasm` thin per CLAUDE.md. wgpu is a heavy dependency; a dedicated crate isolates it cleanly.
 
-**Fullscreen triangle, not quad.** A single triangle with 3 vertices requires no index buffer and no vertex buffer. It produces a perfectly rasterized fullscreen fill. The standard trick is to use clip-space coordinates `(-1,3), (-1,-1), (3,-1)` which form a triangle that exactly covers the NDC square `[-1,1]×[-1,1]`.
+**`#![cfg(target_arch = "wasm32")]` on the whole crate.** `gpuboy-render` is WASM-only. The crate-level cfg gate prevents `cargo clippy` on the host from trying to compile wgpu without the right backend features.
 
-**UVs passed via vertex output.** Computing UVs from `frag_pos / vec2(canvas_width, canvas_height)` in the fragment shader requires knowing the canvas size as a uniform or hardcoded constant. Passing UVs from the vertex shader is cleaner and avoids an extra uniform buffer.
+**`render_frame_wgpu(fb: &[u8])` takes the framebuffer as a parameter.** Keeps `gpuboy-render` decoupled from `gpuboy-core`. JS calls `get_framebuffer()` then `render_frame_wgpu(fb)` — explicit and debuggable. `get_framebuffer()` is retained for the 2D fallback path.
 
-**Nearest-neighbor sampler.** `magFilter: 'nearest'` and `minFilter: 'nearest'` preserve pixel-art aesthetics at the 3× CSS scale. Bilinear would blur pixels and contradict `image-rendering: pixelated`.
+**Two canvases for runtime toggling.** A canvas element's context type is locked on first `getContext()` call — you cannot switch between `'webgpu'` and `'2d'` on the same element. Two canvases (`#screen` locked to WebGPU by wgpu, `#screen-2d` locked to 2D by JS) allow true runtime switching via CSS `display` toggling. The 2D context is acquired once at startup regardless; it just isn't drawn to until the toggle is used.
 
-**Canvas format via `getPreferredCanvasFormat()`.** Using the device's preferred format (`bgra8unorm` on most desktop, `rgba8unorm` on some mobile) avoids a GPU-side format conversion on every present. The texture format used for the framebuffer remains `rgba8unorm` regardless; the GPU handles the blit to the preferred format.
-
-**Graceful fallback.** If `navigator.gpu` is undefined (Firefox without a flag, Safari < 18, or old Chromium) or `requestAdapter()` returns null (no suitable GPU), the code catches the failure, displays a message in `#error`, and activates the 2D canvas `putImageData` path. The emulator continues to run — only the renderer differs. This allows testing on browsers without WebGPU.
-
-**`device.lost` promise.** WebGPU devices can be lost asynchronously (GPU reset, tab backgrounded on mobile). The code attaches a `.then` handler to `device.lost` that logs via `console.error`. Recovery (re-init) is out of scope for Phase 3b. After device loss, subsequent WebGPU API calls on the lost device will generate GPU validation errors visible in DevTools but will not throw JS exceptions. The rAF loop will continue without crashing. This is accepted behavior for Phase 3b — recovery/re-init is out of scope.
-
-**Bind group created once.** Since the texture is reused each frame, the bind group referencing its view can also be created once. This avoids creating a new `GPUBindGroup` on every frame.
+**`thread_local! { static RENDERER }` pattern.** Matches the existing `EMULATOR` pattern in `gpuboy-wasm`. WASM is single-threaded; `RefCell` is sufficient, no `Mutex` needed.
 
 ## Tasks
 
-- [ ] 1. In `www/index.js`, update the `import` statement at the top of the file to include `step_frame` and `get_framebuffer` from `../pkg/gpuboy_wasm.js`:
-    ```js
-    import init, { run, load_rom, step_frame, get_framebuffer } from "../pkg/gpuboy_wasm.js";
-    ```
-    Note: `step_frame` and `get_framebuffer` are Phase 3a WASM exports that must already exist. Then, extract the existing Phase 3a per-frame rendering into a named function `function render2d(ctx2d, framebuffer)` that calls `ctx2d.putImageData(...)`. This function becomes the 2D fallback path and makes the later switchover clean. *(req 2, 5)*
+- [ ] 1. In the root `Cargo.toml`, add `"crates/gpuboy-render"` to the `[workspace] members` list. *(architecture)*
 
-- [ ] 2. In `www/index.js`, add a feature-detection guard at the top of `initWebGPU()`: if `!navigator.gpu`, throw an `Error('WebGPU not available: navigator.gpu is undefined')`. Callers catch this and fall back. *(req 2)*
+- [ ] 2. Create `crates/gpuboy-render/Cargo.toml` with the content from §`gpuboy-render` Cargo.toml above. *(architecture)*
 
-- [ ] 3. Implement `async function initWebGPU(canvas)` in `www/index.js`. Perform the following steps in order, throwing descriptive `Error`s on failure:
-    - `const adapter = await navigator.gpu.requestAdapter()`; if `adapter` is null, throw `Error('WebGPU not available: no suitable adapter')`.
-    - `const device = await adapter.requestDevice()`.
-    - Attach `device.lost.then(info => console.error('WebGPU device lost:', info.message, info.reason))` for req 6.
-    - `const context = canvas.getContext('webgpu')`; if null, throw `Error('Failed to get WebGPU canvas context')`. Note: calling `getContext('webgpu')` only after the device is confirmed avoids permanently locking the canvas if earlier init steps fail.
-    - `const format = navigator.gpu.getPreferredCanvasFormat()`.
-    - `context.configure({ device, format })`.
-    - Create `texture`: `device.createTexture({ size: [160, 144], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST })`.
-    - Create `sampler`: `device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' })`.
-    - Return `{ device, context, format, texture, sampler }`. *(req 1, 3, 6)*
+- [ ] 3. Create `crates/gpuboy-render/src/lib.rs`. Start with `#![cfg(target_arch = "wasm32")]`. Define `const SHADER_SRC: &str` with the full WGSL from §WGSL Shaders. Define the `WgpuRenderer` struct with the six fields from §`WgpuRenderer` struct. *(req 3, 4)*
 
-- [ ] 4. In `www/index.js`, define the combined WGSL shader source as a JS template literal constant `SHADER_SRC`. The single module must contain the `VsOut` struct, both `@group(0)` binding declarations, `vs_main`, and `fs_main` exactly as written in the Design §WGSL Shaders section. The vertex entry point is `vs_main`, the fragment entry point is `fs_main`. *(req 3)*
+- [ ] 4. Implement `impl WgpuRenderer { pub async fn new(canvas: web_sys::HtmlCanvasElement) -> Result<Self, String> }` following the 15-step sequence in §`WgpuRenderer::new` setup sequence exactly. *(req 1, 3, 6)*
 
-- [ ] 5. Implement `createPipeline(device, format, texture, sampler)` in `www/index.js`. Steps:
-    - `const shaderModule = device.createShaderModule({ code: SHADER_SRC })`.
-    - `const bindGroupLayout = device.createBindGroupLayout({ entries: [ { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } }, { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } } ] })`.
-    - `const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] })`.
-    - `const pipeline = device.createRenderPipeline({ layout: pipelineLayout, vertex: { module: shaderModule, entryPoint: 'vs_main' }, fragment: { module: shaderModule, entryPoint: 'fs_main', targets: [{ format }] }, primitive: { topology: 'triangle-list' } })`.
-    - `const bindGroup = device.createBindGroup({ layout: bindGroupLayout, entries: [ { binding: 0, resource: texture.createView() }, { binding: 1, resource: sampler } ] })`.
-    - Return `{ pipeline, bindGroup }`. *(req 3, 4)*
+- [ ] 5. Implement `impl WgpuRenderer { pub fn render_frame(&self, fb: &[u8]) }` following the 11-step sequence in §`WgpuRenderer::render_frame` sequence. *(req 3, 4, 5)*
 
-- [ ] 6. Implement `function renderFrameWebGPU({ device, context, texture, pipeline, bindGroup }, framebuffer)` in `www/index.js`. Steps:
-    - Upload framebuffer: `device.queue.writeTexture( { texture }, framebuffer, { bytesPerRow: 160 * 4 }, [160, 144] )`.
-    - `const encoder = device.createCommandEncoder()`.
-    - `const pass = encoder.beginRenderPass({ colorAttachments: [{ view: context.getCurrentTexture().createView(), loadOp: 'dont-care', storeOp: 'store' }] })`. (The swapchain texture changes every frame, so `getCurrentTexture().createView()` must be called per-frame. This is different from the framebuffer texture view used in the bind group, which is stable because the texture object is reused.) The fullscreen triangle covers every pixel, so a clear is wasted work. `dont-care` tells the GPU the initial contents are irrelevant.
-    - `pass.setPipeline(pipeline)`.
-    - `pass.setBindGroup(0, bindGroup)`.
-    - `pass.draw(3)`.
-    - `pass.end()`.
-    - `device.queue.submit([encoder.finish()])`. *(req 3, 4, 5)*
+- [ ] 6. Update `crates/gpuboy-wasm/Cargo.toml`: add `gpuboy-render`, `wasm-bindgen-futures`, and `js-sys` dependencies; add `"Window"`, `"Document"`, `"HtmlCanvasElement"` to the `web-sys` features list. See §`gpuboy-wasm` additions for the exact additions. *(architecture)*
 
-- [ ] 7. Update `async function main()` in `www/index.js` to wire everything together:
-    - After `await init()` and `run()`, attempt WebGPU init:
-      ```js
-      let renderer = null;
-      try {
-          const canvas = document.getElementById('screen');
-          const gpuState = await initWebGPU(canvas);
-          const pipelineState = createPipeline(gpuState.device, gpuState.format, gpuState.texture, gpuState.sampler);
-          renderer = { ...gpuState, ...pipelineState };
-      } catch (err) {
-          console.error('WebGPU init failed:', err);
-          const errEl = document.getElementById('error');
-          if (errEl) {
-              errEl.textContent = `WebGPU unavailable: ${err.message}. Falling back to 2D canvas.`;
-              errEl.style.display = 'block';
-          }
-      }
-      ```
-    - For the 2D fallback, acquire the 2D context once if `renderer` is null:
-      ```js
-      const ctx2d = renderer ? null : document.getElementById('screen').getContext('2d');
-      if (!renderer && !ctx2d) {
-          const errEl = document.getElementById('error');
-          if (errEl) errEl.textContent = 'Canvas context unavailable: could not get 2D context (canvas may be locked to WebGPU).';
-          return; // abort main()
-      }
-      ```
-    - Set up the `requestAnimationFrame` loop and ROM loading. The expected structure is:
-      ```js
-      let animationId = null;
+- [ ] 7. Update `crates/gpuboy-wasm/src/lib.rs`: add `use gpuboy_render::WgpuRenderer` and `use wasm_bindgen::JsCast`; add the `RENDERER` thread-local static; add `init_renderer` and `render_frame_wgpu` exports. Keep all existing code unchanged. See §`gpuboy-wasm` additions for the exact code. *(req 1, 2, 3)*
 
-      function loop() {
-          step_frame();
-          const fb = get_framebuffer();
-          if (renderer) {
-              renderFrameWebGPU(renderer, fb);
-          } else {
-              render2d(ctx2d, fb);
-          }
-          animationId = requestAnimationFrame(loop);
-      }
+- [ ] 8. Update `www/index.html`: add `#screen-2d` canvas and `#renderer-toggle` button; update the CSS selector to cover both canvases. See §HTML changes for the exact additions. *(req 7)*
 
-      // Start loop after ROM is loaded
-      document.getElementById('rom-input').addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-              const data = new Uint8Array(ev.target.result);
-              load_rom(data);
-              if (animationId !== null) cancelAnimationFrame(animationId);
-              loop();
-          };
-          reader.readAsArrayBuffer(file);
-      });
-      ```
-      Note: the exact ROM loading UI may differ in Phase 3a's implementation; adapt this to match whatever `index.js` structure Phase 3a produced.
-    *(req 1, 2, 5)*
+- [ ] 9. Rewrite `www/index.js` following §JS changes: updated import, keep `render2d`, update `main()` to try wgpu, show/hide canvases, wire toggle button, dispatch in loop. *(req 1, 2, 5, 7)*
 
-- [ ] 8. Verify that no `putImageData` call exists in the WebGPU code path. The `render2d` function (fallback only) is the sole remaining user of `putImageData`. In the main loop, `putImageData` is never called when `renderer` is non-null. *(req 5)*
-
-- [ ] 9. Remove any now-dead Phase 3a-specific code that was replaced: if Phase 3a had a direct `ctx.putImageData` call inline in the main loop (rather than in `render2d`), replace it with the dispatch from task 7. Ensure `render2d` is defined before `main()` is called. *(req 5)*
+- [ ] 10. Verify `putImageData` does not appear in the wgpu code path: it must only be called inside `render2d()`, which is only called in the loop when `useWebGpu` is false. *(req 5)*
 
 ## Manual Testing
 
-1. Build the WASM: `wasm-pack build crates/gpuboy-wasm --target web`.
-2. Serve locally: `python -m http.server 8000`, open `http://localhost:8000/www/` in Chrome or Edge (WebGPU-enabled browser).
-3. Open DevTools console. Confirm no errors on page load. Confirm "gpuboy ready" appears.
-4. Load a flat (MBC-0) .gb ROM using the file picker. Confirm the ROM title appears in the console and game pixels render on the canvas.
-5. Verify pixels are sharp, not blurry — individual pixels should have hard edges at the 3× CSS scale. Zoom into the canvas in the browser to confirm.
-6. Open DevTools > Performance (or use `chrome://gpu`) and confirm WebGPU-related activity (draw calls, GPU command submission). In Chrome 113+, `chrome://gpu` → "Graphics Feature Status" → "WebGPU" should show "Hardware accelerated".
-7. Test the fallback path using one of these methods:
-   - **Browser flags**: In Chrome/Edge, navigate to `chrome://flags/#enable-unsafe-webgpu` and disable WebGPU, then reload the page. Confirm the `#error` div is visible and the 2D canvas fallback renders.
-   - **Alternative browser**: Open the page in Firefox (without WebGPU enabled via `dom.webgpu.enabled` flag). Confirm fallback behavior.
-   - **Programmatic**: Temporarily add `if (true) throw new Error('WebGPU disabled for test')` as the first line of `initWebGPU()`, reload, confirm fallback, then remove the line.
-8. Open the page in Firefox (without WebGPU flags enabled) and confirm the same fallback behavior (if not already covered by step 7).
-9. Load a ROM that produces known visual output (e.g. a title screen or test pattern). Compare the WebGPU-rendered output side-by-side against a screenshot from Phase 3a's `putImageData` path to confirm pixel-identical output.
+1. Build: `wasm-pack build crates/gpuboy-wasm --target web`.
+2. Serve: `python -m http.server 8000`, open `http://localhost:8000/www/` in Chrome/Edge.
+3. Open DevTools console. Confirm no errors on load.
+4. Load a flat (MBC-0) `.gb` ROM. Confirm pixels render on the `#screen` canvas via the wgpu path.
+5. Verify pixels are sharp (hard pixel edges) at 3× CSS scale.
+6. DevTools → `chrome://gpu` → confirm WebGPU is hardware accelerated.
+7. Confirm "Switch to 2D canvas" button is visible. Click it; confirm `#screen-2d` is now visible and renders the same output. Click again; confirm back to wgpu.
+8. Test fallback: add `return Err("disabled for test".to_string());` as the first line of `WgpuRenderer::new`, rebuild. Confirm `#error` shows a message, `#screen-2d` is visible, 2D canvas renders, toggle button is hidden. Remove the test line.
+9. Pixel-compare both renderers by toggling while a ROM runs — output should look identical.
 
 **Green light:** [ ]
