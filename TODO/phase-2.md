@@ -299,11 +299,11 @@ Reads of unmapped IO still return 0xFF. Writes to unmapped IO are silently dropp
 
 - [x] 8. Implement `Cpu::step_cb(&mut self, bus: &mut Bus) -> u32` in `cpu.rs`. Extract operand register from `opcode & 0x07` and bit index from `(opcode >> 3) & 0x07`. Use a helper `cb_reg_read(r: u8, bus: &Bus) -> u8` and `cb_reg_write(r: u8, val: u8, bus: &mut Bus)` for the 0-7 encoding. Match on `opcode >> 6` for group (0=shift/rotate, 1=BIT, 2=RES, 3=SET), then `(opcode >> 3) & 0x07` for operation within group 0 (RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL). (HL) operand costs 4 extra T-cycles on reads and 4 more on writes. BIT sets Z=!(val & (1<<b)), N=0, H=1, does not write back. RES/SET write back; no flag changes. All shift/rotate ops set Z, clear N and H, set C from shifted-out bit; SWAP clears all flags except Z. *(req 1)*
 
-- [ ] 9. Replace the body of `crates/gpuboy-core/src/lib.rs` with the `Emulator` struct: `pub struct Emulator { pub cpu: Cpu, pub bus: Bus }`. Implement `Emulator::new(rom: Vec<u8>) -> Result<Self, String>` (creates Bus via `Bus::new(Cartridge::load(rom)?)`  and `Cpu::new()`). Implement `pub fn step(&mut self) -> u32` (calls `cpu.step(&mut bus)`, then `bus.step_timer(t_cycles)`, returns t_cycles). Implement `pub fn step_frame(&mut self)` (accumulates t_cycles in a local until ≥ 70224). Implement `pub fn take_serial_output(&mut self) -> Vec<u8>` (delegates to `bus.take_serial_output()`). *(req 11)*
+- [x] 9. Replace the body of `crates/gpuboy-core/src/lib.rs` with the `Emulator` struct: `pub struct Emulator { pub cpu: Cpu, pub bus: Bus }`. Implement `Emulator::new(rom: Vec<u8>) -> Result<Self, String>` (creates Bus via `Bus::new(Cartridge::load(rom)?)`  and `Cpu::new()`). Implement `pub fn step(&mut self) -> u32` (calls `cpu.step(&mut bus)`, then `bus.step_timer(t_cycles)`, returns t_cycles). Implement `pub fn step_frame(&mut self)` (accumulates t_cycles in a local until ≥ 70224). Implement `pub fn take_serial_output(&mut self) -> Vec<u8>` (delegates to `bus.take_serial_output()`). *(req 11)*
 
-- [ ] 10. Update `crates/gpuboy-wasm/src/lib.rs`: add a `thread_local! { static EMULATOR: RefCell<Option<Emulator>> = RefCell::new(None); }`. Update `load_rom` to call `Emulator::new(data)` and store in the thread-local (log title on success, error string on failure). Add `#[wasm_bindgen] pub fn step_frame()` (borrows EMULATOR, calls step_frame if Some). Add `#[wasm_bindgen] pub fn take_serial_output() -> String` (borrows EMULATOR, calls take_serial_output, converts bytes to a UTF-8 lossy string, logs it to console, returns it). *(req 11)*
+- [x] 10. Update `crates/gpuboy-wasm/src/lib.rs`: add a `thread_local! { static EMULATOR: RefCell<Option<Emulator>> = RefCell::new(None); }`. Update `load_rom` to call `Emulator::new(data)` and store in the thread-local (log title on success, error string on failure). Add `#[wasm_bindgen] pub fn step_frame()` (borrows EMULATOR, calls step_frame if Some). Add `#[wasm_bindgen] pub fn take_serial_output() -> String` (borrows EMULATOR, calls take_serial_output, converts bytes to a UTF-8 lossy string, logs it to console, returns it). *(req 11)*
 
-- [ ] 11. Add unit tests:
+- [x] 11. Add unit tests:
     - **`cpu.rs`**:
       - `nop_advances_pc`: build a tiny Bus with a NOP ROM; call `cpu.step(&mut bus)`; assert PC=0x0101, T-cycles=4.
       - `ld_a_imm`: opcode 0x3E 0x42; after step, A=0x42, PC=0x0102.
@@ -337,4 +337,4 @@ Reads of unmapped IO still return 0xFF. Writes to unmapped IO are silently dropp
 7. After loading, call `step_frame()` from the browser console (`window.step_frame()` if exported) and confirm no panic / console error.
 8. Confirm serial output: load a ROM that writes to SB/SC (or use the integration test ROM saved as a .gb file); after step_frame(), call `take_serial_output()` from the console and confirm expected bytes appear.
 
-**Green light:** [ ]
+**Green light:** [x]

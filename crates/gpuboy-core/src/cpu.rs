@@ -168,6 +168,10 @@ impl Cpu {
             self.fetch_byte(bus)
         };
 
+        // Snapshot ime_pending before execution so EI's own step doesn't self-promote.
+        // Promotion fires at the end of the instruction *following* EI, not EI itself.
+        let ime_pending_before = self.ime_pending;
+
         // 4. Execute opcode
         let cycles = match opcode {
             // --- 0x00–0x3F -----------------------------------------------
@@ -1008,8 +1012,8 @@ impl Cpu {
             }
         };
 
-        // 5. EI promotion
-        if self.ime_pending {
+        // 5. EI promotion — use pre-execution snapshot so EI doesn't promote itself
+        if ime_pending_before {
             self.ime = true;
             self.ime_pending = false;
         }
@@ -1216,6 +1220,7 @@ impl Cpu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bus::Bus;
     use crate::cartridge::Cartridge;
 
     fn make_cpu_bus(rom_patch: &[(u16, u8)]) -> (Cpu, Bus) {
@@ -1279,5 +1284,127 @@ mod tests {
         let w = cpu.fetch_word(&mut bus);
         assert_eq!(w, 0x1234);
         assert_eq!(cpu.pc, 0x0102);
+    }
+
+    #[test]
+    fn nop_advances_pc() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[]);
+        let cycles = cpu.step(&mut bus);
+        assert_eq!(cpu.pc, 0x0101);
+        assert_eq!(cycles, 4);
+    }
+
+    #[test]
+    fn ld_a_imm() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0x3E), (0x0101, 0x42)]);
+        cpu.step(&mut bus);
+        assert_eq!(cpu.a, 0x42);
+        assert_eq!(cpu.pc, 0x0102);
+    }
+
+    #[test]
+    fn add_a_flags_zero() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0x87)]); // ADD A,A
+        cpu.a = 0x80;
+        cpu.step(&mut bus);
+        assert_eq!(cpu.a, 0x00);
+        assert!(cpu.zf());
+        assert!(!cpu.nf());
+        assert!(!cpu.hf());
+        assert!(cpu.cf());
+    }
+
+    #[test]
+    fn add_a_flags_half_carry() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0xC6), (0x0101, 0x01)]); // ADD A,n
+        cpu.a = 0x0F;
+        cpu.step(&mut bus);
+        assert!(cpu.hf());
+    }
+
+    #[test]
+    fn sub_borrow() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0xD6), (0x0101, 0x02)]); // SUB n
+        cpu.a = 0x01;
+        cpu.step(&mut bus);
+        assert_eq!(cpu.a, 0xFF);
+        assert!(cpu.cf());
+        assert!(cpu.nf());
+    }
+
+    #[test]
+    fn jp_nn() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0xC3), (0x0101, 0x50), (0x0102, 0x01)]);
+        cpu.step(&mut bus);
+        assert_eq!(cpu.pc, 0x0150);
+    }
+
+    #[test]
+    fn call_ret() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[
+            (0x0100, 0xCD),
+            (0x0101, 0x00),
+            (0x0102, 0x02), // CALL 0x0200
+            (0x0200, 0xC9), // RET
+        ]);
+        cpu.step(&mut bus); // CALL
+        assert_eq!(cpu.pc, 0x0200);
+        assert_eq!(cpu.sp, 0xFFFC);
+        cpu.step(&mut bus); // RET
+        assert_eq!(cpu.pc, 0x0103);
+        assert_eq!(cpu.sp, 0xFFFE);
+    }
+
+    #[test]
+    fn ei_delay() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0xFB), (0x0101, 0x00)]); // EI; NOP
+        bus.write(0xFF0F, 0x01); // IF bit 0
+        bus.write(0xFFFF, 0x01); // IE bit 0
+
+        // Step 1: EI — IME not yet active; no dispatch
+        let c1 = cpu.step(&mut bus);
+        assert_eq!(c1, 4);
+        assert!(!cpu.ime);
+
+        // Step 2: NOP — interrupt check fires with IME still false (promotion happens at END)
+        let c2 = cpu.step(&mut bus);
+        assert_eq!(c2, 4);
+        assert!(cpu.ime); // promoted at end of this step
+
+        // Step 3: dispatch — IME now true at the top of step
+        let c3 = cpu.step(&mut bus);
+        assert_eq!(c3, 20);
+    }
+
+    #[test]
+    fn halt_wakeup() {
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0x76), (0x0101, 0x00)]); // HALT; NOP
+        let c = cpu.step(&mut bus); // HALT with no pending interrupt
+        assert_eq!(c, 4);
+        assert!(cpu.halted);
+        let pc_after_halt = cpu.pc; // 0x0101
+
+        bus.set_if_bit(0);
+        bus.write(0xFFFF, 0x01); // IE bit 0
+
+        // Wakeup: halted clears, NOP at 0x0101 executes, PC advances
+        cpu.step(&mut bus);
+        assert!(!cpu.halted);
+        assert_eq!(cpu.pc, pc_after_halt + 1); // NOP advanced PC by 1
+    }
+
+    #[test]
+    fn halt_bug_triggered() {
+        // IME=false (default), IF=IE=0x01 → halt bug, not a real halt
+        let (mut cpu, mut bus) = make_cpu_bus(&[(0x0100, 0x76), (0x0101, 0x00)]); // HALT; NOP
+        bus.write(0xFF0F, 0x01);
+        bus.write(0xFFFF, 0x01);
+
+        cpu.step(&mut bus); // HALT → halt_bug=true, PC=0x0101
+        assert!(cpu.halt_bug);
+        let pc_stuck = cpu.pc; // 0x0101
+
+        cpu.step(&mut bus); // reads 0x0101 without incrementing PC
+        assert_eq!(cpu.pc, pc_stuck); // PC did not advance
     }
 }
