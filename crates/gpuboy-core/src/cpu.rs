@@ -170,6 +170,515 @@ impl Cpu {
 
         // 4. Execute opcode
         let cycles = match opcode {
+            // --- 0x00–0x3F -----------------------------------------------
+            0x00 => 4, // NOP
+
+            // LD rr,nn
+            0x01 => {
+                let nn = self.fetch_word(bus);
+                self.set_bc(nn);
+                12
+            }
+            0x11 => {
+                let nn = self.fetch_word(bus);
+                self.set_de(nn);
+                12
+            }
+            0x21 => {
+                let nn = self.fetch_word(bus);
+                self.set_hl(nn);
+                12
+            }
+            0x31 => {
+                self.sp = self.fetch_word(bus);
+                12
+            }
+
+            // LD (BC/DE),A
+            0x02 => {
+                bus.write(self.bc(), self.a);
+                8
+            }
+            0x12 => {
+                bus.write(self.de(), self.a);
+                8
+            }
+
+            // INC rr
+            0x03 => {
+                let v = self.bc().wrapping_add(1);
+                self.set_bc(v);
+                8
+            }
+            0x13 => {
+                let v = self.de().wrapping_add(1);
+                self.set_de(v);
+                8
+            }
+            0x23 => {
+                let v = self.hl().wrapping_add(1);
+                self.set_hl(v);
+                8
+            }
+            0x33 => {
+                self.sp = self.sp.wrapping_add(1);
+                8
+            }
+
+            // DEC rr
+            0x0B => {
+                let v = self.bc().wrapping_sub(1);
+                self.set_bc(v);
+                8
+            }
+            0x1B => {
+                let v = self.de().wrapping_sub(1);
+                self.set_de(v);
+                8
+            }
+            0x2B => {
+                let v = self.hl().wrapping_sub(1);
+                self.set_hl(v);
+                8
+            }
+            0x3B => {
+                self.sp = self.sp.wrapping_sub(1);
+                8
+            }
+
+            // INC r
+            0x04 => {
+                let old = self.b;
+                self.b = old.wrapping_add(1);
+                self.set_zf(self.b == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x0C => {
+                let old = self.c;
+                self.c = old.wrapping_add(1);
+                self.set_zf(self.c == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x14 => {
+                let old = self.d;
+                self.d = old.wrapping_add(1);
+                self.set_zf(self.d == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x1C => {
+                let old = self.e;
+                self.e = old.wrapping_add(1);
+                self.set_zf(self.e == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x24 => {
+                let old = self.h;
+                self.h = old.wrapping_add(1);
+                self.set_zf(self.h == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x2C => {
+                let old = self.l;
+                self.l = old.wrapping_add(1);
+                self.set_zf(self.l == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+            0x3C => {
+                let old = self.a;
+                self.a = old.wrapping_add(1);
+                self.set_zf(self.a == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                4
+            }
+
+            // DEC r
+            0x05 => {
+                let old = self.b;
+                self.b = old.wrapping_sub(1);
+                self.set_zf(self.b == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x0D => {
+                let old = self.c;
+                self.c = old.wrapping_sub(1);
+                self.set_zf(self.c == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x15 => {
+                let old = self.d;
+                self.d = old.wrapping_sub(1);
+                self.set_zf(self.d == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x1D => {
+                let old = self.e;
+                self.e = old.wrapping_sub(1);
+                self.set_zf(self.e == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x25 => {
+                let old = self.h;
+                self.h = old.wrapping_sub(1);
+                self.set_zf(self.h == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x2D => {
+                let old = self.l;
+                self.l = old.wrapping_sub(1);
+                self.set_zf(self.l == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+            0x3D => {
+                let old = self.a;
+                self.a = old.wrapping_sub(1);
+                self.set_zf(self.a == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                4
+            }
+
+            // INC/DEC (HL)
+            0x34 => {
+                let addr = self.hl();
+                let old = bus.read(addr);
+                let result = old.wrapping_add(1);
+                bus.write(addr, result);
+                self.set_zf(result == 0);
+                self.set_nf(false);
+                self.set_hf((old & 0xF) == 0xF);
+                12
+            }
+            0x35 => {
+                let addr = self.hl();
+                let old = bus.read(addr);
+                let result = old.wrapping_sub(1);
+                bus.write(addr, result);
+                self.set_zf(result == 0);
+                self.set_nf(true);
+                self.set_hf((old & 0xF) == 0x0);
+                12
+            }
+
+            // LD r,n
+            0x06 => {
+                self.b = self.fetch_byte(bus);
+                8
+            }
+            0x0E => {
+                self.c = self.fetch_byte(bus);
+                8
+            }
+            0x16 => {
+                self.d = self.fetch_byte(bus);
+                8
+            }
+            0x1E => {
+                self.e = self.fetch_byte(bus);
+                8
+            }
+            0x26 => {
+                self.h = self.fetch_byte(bus);
+                8
+            }
+            0x2E => {
+                self.l = self.fetch_byte(bus);
+                8
+            }
+            0x3E => {
+                self.a = self.fetch_byte(bus);
+                8
+            }
+
+            // LD (HL),n
+            0x36 => {
+                let n = self.fetch_byte(bus);
+                bus.write(self.hl(), n);
+                12
+            }
+
+            // RLCA
+            0x07 => {
+                let bit7 = self.a >> 7;
+                self.a = (self.a << 1) | bit7;
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(bit7 != 0);
+                4
+            }
+
+            // RRCA
+            0x0F => {
+                let bit0 = self.a & 1;
+                self.a = (self.a >> 1) | (bit0 << 7);
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(bit0 != 0);
+                4
+            }
+
+            // RLA
+            0x17 => {
+                let old_c = self.cf() as u8;
+                let bit7 = self.a >> 7;
+                self.a = (self.a << 1) | old_c;
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(bit7 != 0);
+                4
+            }
+
+            // RRA
+            0x1F => {
+                let old_c = self.cf() as u8;
+                let bit0 = self.a & 1;
+                self.a = (self.a >> 1) | (old_c << 7);
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(bit0 != 0);
+                4
+            }
+
+            // LD (a16),SP
+            0x08 => {
+                let addr = self.fetch_word(bus);
+                bus.write(addr, self.sp as u8);
+                bus.write(addr.wrapping_add(1), (self.sp >> 8) as u8);
+                20
+            }
+
+            // ADD HL,rr — Z unchanged; N=0; H=carry from bit 11; C=carry from bit 15
+            0x09 => {
+                let hl = self.hl();
+                let rr = self.bc();
+                let result = hl as u32 + rr as u32;
+                self.set_nf(false);
+                self.set_hf((hl & 0xFFF) + (rr & 0xFFF) > 0xFFF);
+                self.set_cf(result > 0xFFFF);
+                self.set_hl(result as u16);
+                8
+            }
+            0x19 => {
+                let hl = self.hl();
+                let rr = self.de();
+                let result = hl as u32 + rr as u32;
+                self.set_nf(false);
+                self.set_hf((hl & 0xFFF) + (rr & 0xFFF) > 0xFFF);
+                self.set_cf(result > 0xFFFF);
+                self.set_hl(result as u16);
+                8
+            }
+            0x29 => {
+                let hl = self.hl();
+                let rr = hl;
+                let result = hl as u32 + rr as u32;
+                self.set_nf(false);
+                self.set_hf((hl & 0xFFF) + (rr & 0xFFF) > 0xFFF);
+                self.set_cf(result > 0xFFFF);
+                self.set_hl(result as u16);
+                8
+            }
+            0x39 => {
+                let hl = self.hl();
+                let rr = self.sp;
+                let result = hl as u32 + rr as u32;
+                self.set_nf(false);
+                self.set_hf((hl & 0xFFF) + (rr & 0xFFF) > 0xFFF);
+                self.set_cf(result > 0xFFFF);
+                self.set_hl(result as u16);
+                8
+            }
+
+            // LD A,(BC/DE)
+            0x0A => {
+                self.a = bus.read(self.bc());
+                8
+            }
+            0x1A => {
+                self.a = bus.read(self.de());
+                8
+            }
+
+            // STOP — consume mandatory padding byte, no LCD/speed-switch in Phase 2
+            0x10 => {
+                self.fetch_byte(bus);
+                4
+            }
+
+            // JR e (unconditional)
+            0x18 => {
+                let e = self.fetch_byte(bus) as i8;
+                self.pc = self.pc.wrapping_add(e as i16 as u16);
+                12
+            }
+
+            // JR cc,e
+            0x20 => {
+                let e = self.fetch_byte(bus) as i8;
+                if !self.zf() {
+                    self.pc = self.pc.wrapping_add(e as i16 as u16);
+                    12
+                } else {
+                    8
+                }
+            }
+            0x28 => {
+                let e = self.fetch_byte(bus) as i8;
+                if self.zf() {
+                    self.pc = self.pc.wrapping_add(e as i16 as u16);
+                    12
+                } else {
+                    8
+                }
+            }
+            0x30 => {
+                let e = self.fetch_byte(bus) as i8;
+                if !self.cf() {
+                    self.pc = self.pc.wrapping_add(e as i16 as u16);
+                    12
+                } else {
+                    8
+                }
+            }
+            0x38 => {
+                let e = self.fetch_byte(bus) as i8;
+                if self.cf() {
+                    self.pc = self.pc.wrapping_add(e as i16 as u16);
+                    12
+                } else {
+                    8
+                }
+            }
+
+            // LD (HL+),A / LD A,(HL+) / LD (HL-),A / LD A,(HL-)
+            0x22 => {
+                let addr = self.hl();
+                bus.write(addr, self.a);
+                self.set_hl(addr.wrapping_add(1));
+                8
+            }
+            0x2A => {
+                let addr = self.hl();
+                self.a = bus.read(addr);
+                self.set_hl(addr.wrapping_add(1));
+                8
+            }
+            0x32 => {
+                let addr = self.hl();
+                bus.write(addr, self.a);
+                self.set_hl(addr.wrapping_sub(1));
+                8
+            }
+            0x3A => {
+                let addr = self.hl();
+                self.a = bus.read(addr);
+                self.set_hl(addr.wrapping_sub(1));
+                8
+            }
+
+            // DAA
+            0x27 => {
+                let mut a = self.a;
+                let nf = self.nf();
+                let hf = self.hf();
+                let old_cf = self.cf();
+                let mut new_cf = old_cf;
+                if !nf {
+                    if old_cf || a > 0x99 {
+                        a = a.wrapping_add(0x60);
+                        new_cf = true;
+                    }
+                    if hf || (a & 0x0F) > 0x09 {
+                        a = a.wrapping_add(0x06);
+                    }
+                } else {
+                    if old_cf {
+                        a = a.wrapping_sub(0x60);
+                    }
+                    if hf {
+                        a = a.wrapping_sub(0x06);
+                    }
+                }
+                self.a = a;
+                self.set_zf(a == 0);
+                self.set_hf(false);
+                self.set_cf(new_cf);
+                4
+            }
+
+            // CPL
+            0x2F => {
+                self.a = !self.a;
+                self.set_nf(true);
+                self.set_hf(true);
+                4
+            }
+
+            // SCF
+            0x37 => {
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(true);
+                4
+            }
+
+            // CCF
+            0x3F => {
+                let c = self.cf();
+                self.set_nf(false);
+                self.set_hf(false);
+                self.set_cf(!c);
+                4
+            }
+
+            // --- 0x40–0x7F: LD r,r / LD r,(HL) / LD (HL),r / HALT -------
+            0x40..=0x7F => {
+                if opcode == 0x76 {
+                    if !self.ime && (bus.if_reg() & bus.ie() & 0x1F) != 0 {
+                        self.halt_bug = true;
+                    } else {
+                        self.halted = true;
+                    }
+                    4
+                } else {
+                    let dst = (opcode >> 3) & 0x07;
+                    let src = opcode & 0x07;
+                    let val = self.reg_read(src, bus);
+                    let cycles = if src == 6 || dst == 6 { 8 } else { 4 };
+                    self.reg_write(dst, val, bus);
+                    cycles
+                }
+            }
+
+            // --- 0xCB prefix ----------------------------------------------
             0xCB => {
                 let cb_op = self.fetch_byte(bus);
                 self.step_cb(cb_op, bus)
@@ -192,6 +701,34 @@ impl Cpu {
 
     fn step_cb(&mut self, _opcode: u8, _bus: &mut Bus) -> u32 {
         todo!("Task 8")
+    }
+
+    pub(crate) fn reg_read(&self, r: u8, bus: &Bus) -> u8 {
+        match r {
+            0 => self.b,
+            1 => self.c,
+            2 => self.d,
+            3 => self.e,
+            4 => self.h,
+            5 => self.l,
+            6 => bus.read(self.hl()),
+            7 => self.a,
+            _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn reg_write(&mut self, r: u8, val: u8, bus: &mut Bus) {
+        match r {
+            0 => self.b = val,
+            1 => self.c = val,
+            2 => self.d = val,
+            3 => self.e = val,
+            4 => self.h = val,
+            5 => self.l = val,
+            6 => bus.write(self.hl(), val),
+            7 => self.a = val,
+            _ => unreachable!(),
+        }
     }
 }
 
