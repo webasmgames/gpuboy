@@ -58,6 +58,7 @@ impl Bus {
             0xFF49 => self.ppu.obp1,
             0xFF4A => self.ppu.wy,
             0xFF4B => self.ppu.wx,
+            0xA000..=0xBFFF => self.cartridge.read(addr),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
             0xFFFF => self.ie,
             _ => 0xFF,
@@ -66,7 +67,7 @@ impl Bus {
 
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
-            0x0000..=0x7FFF => {}
+            0x0000..=0x7FFF => self.cartridge.write(addr, val),
             0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize] = val,
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = val,
             0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize] = val,
@@ -102,6 +103,7 @@ impl Bus {
             0xFF49 => self.ppu.obp1 = val,
             0xFF4A => self.ppu.wy = val,
             0xFF4B => self.ppu.wx = val,
+            0xA000..=0xBFFF => self.cartridge.write(addr, val),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = val,
             0xFFFF => self.ie = val & 0x1F,
             _ => {}
