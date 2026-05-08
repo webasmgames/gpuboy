@@ -42,6 +42,17 @@ pub fn step_frame() {
 }
 
 #[wasm_bindgen]
+pub fn get_framebuffer() -> Vec<u8> {
+    EMULATOR.with(|e| {
+        if let Some(emu) = e.borrow().as_ref() {
+            emu.get_framebuffer().to_vec()
+        } else {
+            Vec::new()
+        }
+    })
+}
+
+#[wasm_bindgen]
 pub fn take_serial_output() -> String {
     EMULATOR.with(|e| {
         if let Some(emu) = e.borrow_mut().as_mut() {

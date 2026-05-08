@@ -1,6 +1,7 @@
 pub mod bus;
 pub mod cartridge;
 pub mod cpu;
+pub mod ppu;
 pub mod timer;
 
 use bus::Bus;
@@ -23,7 +24,12 @@ impl Emulator {
     pub fn step(&mut self) -> u32 {
         let t_cycles = self.cpu.step(&mut self.bus);
         self.bus.step_timer(t_cycles);
+        self.bus.step_ppu(t_cycles);
         t_cycles
+    }
+
+    pub fn get_framebuffer(&self) -> &[u8] {
+        self.bus.ppu.get_framebuffer()
     }
 
     pub fn step_frame(&mut self) {

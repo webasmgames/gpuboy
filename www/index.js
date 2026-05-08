@@ -1,4 +1,21 @@
-import init, { run, load_rom } from "../pkg/gpuboy_wasm.js";
+import init, { run, load_rom, step_frame, get_framebuffer } from "../pkg/gpuboy_wasm.js";
+
+let animationId = null;
+
+function startLoop() {
+    const canvas = document.getElementById("screen");
+    const ctx = canvas.getContext("2d");
+
+    function tick() {
+        step_frame();
+        const fb = get_framebuffer();
+        const imageData = new ImageData(new Uint8ClampedArray(fb), 160, 144);
+        ctx.putImageData(imageData, 0, 0);
+        animationId = requestAnimationFrame(tick);
+    }
+
+    animationId = requestAnimationFrame(tick);
+}
 
 async function main() {
     await init();
@@ -12,6 +29,11 @@ async function main() {
         reader.onload = (ev) => {
             if (ev.target.result instanceof ArrayBuffer) {
                 load_rom(new Uint8Array(ev.target.result));
+                if (animationId !== null) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                startLoop();
             }
         };
         reader.readAsArrayBuffer(file);

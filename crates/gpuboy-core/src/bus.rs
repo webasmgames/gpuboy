@@ -1,4 +1,5 @@
 use crate::cartridge::Cartridge;
+use crate::ppu::Ppu;
 use crate::timer::Timer;
 
 pub struct Bus {
@@ -6,6 +7,9 @@ pub struct Bus {
     wram: [u8; 0x2000],
     hram: [u8; 0x7F],
     timer: Timer,
+    pub ppu: Ppu,
+    vram: [u8; 0x2000],
+    oam: [u8; 0xA0],
     sb: u8,
     sc: u8,
     interrupt_flags: u8, // 0xFF0F — IF register (bits 4-0)
@@ -20,6 +24,9 @@ impl Bus {
             wram: [0; 0x2000],
             hram: [0; 0x7F],
             timer: Timer::new(),
+            ppu: Ppu::new(),
+            vram: [0; 0x2000],
+            oam: [0; 0xA0],
             sb: 0,
             sc: 0,
             interrupt_flags: 0,
@@ -31,12 +38,26 @@ impl Bus {
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
             0x0000..=0x7FFF => self.cartridge.read(addr),
+            0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize],
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize],
             0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize],
+            0xFE00..=0xFE9F => self.oam[(addr - 0xFE00) as usize],
             0xFF01 => self.sb,
             0xFF02 => self.sc,
             0xFF04..=0xFF07 => self.timer.read(addr),
             0xFF0F => self.interrupt_flags,
+            0xFF40 => self.ppu.lcdc,
+            0xFF41 => self.ppu.stat | 0x80,
+            0xFF42 => self.ppu.scy,
+            0xFF43 => self.ppu.scx,
+            0xFF44 => self.ppu.ly,
+            0xFF45 => self.ppu.lyc,
+            0xFF46 => 0xFF,
+            0xFF47 => self.ppu.bgp,
+            0xFF48 => self.ppu.obp0,
+            0xFF49 => self.ppu.obp1,
+            0xFF4A => self.ppu.wy,
+            0xFF4B => self.ppu.wx,
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
             0xFFFF => self.ie,
             _ => 0xFF,
@@ -46,8 +67,10 @@ impl Bus {
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
             0x0000..=0x7FFF => {}
+            0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize] = val,
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = val,
             0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize] = val,
+            0xFE00..=0xFE9F => self.oam[(addr - 0xFE00) as usize] = val,
             0xFF01 => self.sb = val,
             0xFF02 => {
                 if val & 0x80 != 0 {
@@ -60,7 +83,25 @@ impl Bus {
             }
             0xFF04..=0xFF07 => self.timer.write(addr, val),
             0xFF0F => self.interrupt_flags = val & 0x1F,
-            0xFF46 => {} // OAM DMA stub — silently dropped until Phase 3
+            0xFF40 => self.ppu.lcdc = val,
+            0xFF41 => self.ppu.stat = (self.ppu.stat & 0x07) | (val & 0xF8),
+            0xFF42 => self.ppu.scy = val,
+            0xFF43 => self.ppu.scx = val,
+            0xFF44 => {}
+            0xFF45 => self.ppu.lyc = val,
+            0xFF46 => {
+                let src = (val as u16) << 8;
+                let mut buf = [0u8; 160];
+                for i in 0..160u16 {
+                    buf[i as usize] = self.read(src + i);
+                }
+                self.oam.copy_from_slice(&buf);
+            }
+            0xFF47 => self.ppu.bgp = val,
+            0xFF48 => self.ppu.obp0 = val,
+            0xFF49 => self.ppu.obp1 = val,
+            0xFF4A => self.ppu.wy = val,
+            0xFF4B => self.ppu.wx = val,
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = val,
             0xFFFF => self.ie = val & 0x1F,
             _ => {}
@@ -83,6 +124,17 @@ impl Bus {
         if overflows > 0 {
             self.set_if_bit(2);
         }
+    }
+
+    pub fn step_ppu(&mut self, t_cycles: u32) {
+        let Bus {
+            ppu,
+            vram,
+            oam,
+            interrupt_flags,
+            ..
+        } = self;
+        ppu.step(t_cycles, vram, oam, interrupt_flags);
     }
 
     pub fn take_serial_output(&mut self) -> Vec<u8> {
@@ -176,5 +228,17 @@ mod tests {
         bus.write(0xFF07, 0x04); // TAC: enabled, 4096 Hz
         bus.step_timer(1024);
         assert!(bus.if_reg() & 0x04 != 0); // IF bit 2 set
+    }
+
+    #[test]
+    fn test_oam_dma() {
+        let mut bus = test_bus();
+        for i in 0..160u16 {
+            bus.write(0xC000 + i, i as u8);
+        }
+        bus.write(0xFF46, 0xC0);
+        for i in 0..160u16 {
+            assert_eq!(bus.read(0xFE00 + i), i as u8);
+        }
     }
 }

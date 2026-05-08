@@ -12,8 +12,9 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 |---|---|---|---|
 | 0 | Project Scaffold | Rust + wasm-pack + browser shell + CI + GitHub Pages | ✅ |
 | 1 | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | ✅ |
-| 2 | [CPU + Timer + Interrupts + Serial Stub](TODO/phase-2.md) | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | 🔲 |
-| 3 | PPU + WebGPU Renderer | FIFO pixel rendering, placeholder frame clock | 🔲 |
+| 2 | CPU + Timer + Interrupts + Serial Stub | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | ✅ |
+| 3a | PPU Core | Scanline renderer, RGBA framebuffer, 2D canvas display | ✅ |
+| [3b](TODO/phase-3b.md) | WebGPU Renderer | Replace 2D canvas with WebGPU texture + fullscreen quad | 🔲 |
 | 4 | Web UI | ROM file picker, pause/reset, display scaling | 🔲 |
 | 5 | Joypad Input | Keyboard + gamepad | 🔲 |
 | 6 | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | 🔲 |
@@ -23,10 +24,11 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 10 | Game Boy Color | stretch | 🔲 |
 | 11 | Stretch Goals | Shaders, rewind, save states, debugger, link cable | 🔲 |
 
-See `TODO/phase-N.md` for each phase spec.
+See `TODO/phase-N.md` (or `TODO/phase-Na.md` / `TODO/phase-Nb.md`) for each phase spec.
 See `TODO/_template.md` for the spec format.
 
 > - SCRATCH JOSH NOTES
+- make a gpuboy background image...
 - version tracking?
 - changelog? or does git history make a changelog reconstructible for us?
 - visible log/console somewhere?
