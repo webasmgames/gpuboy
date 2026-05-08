@@ -678,16 +678,334 @@ impl Cpu {
                 }
             }
 
+            // --- 0x80–0xBF: ALU register operations -----------------------
+            // op in bits 5-3: 0=ADD 1=ADC 2=SUB 3=SBC 4=AND 5=XOR 6=OR 7=CP
+            // src in bits 2-0 (same 0-7 encoding as LD r,r); 4 cycles, 8 if (HL)
+            0x80..=0xBF => {
+                let op = (opcode >> 3) & 0x07;
+                let r = opcode & 0x07;
+                let val = self.reg_read(r, bus);
+                let cycles = if r == 6 { 8 } else { 4 };
+                match op {
+                    0 => self.alu_add(val, false),
+                    1 => self.alu_add(val, true),
+                    2 => self.alu_sub(val, false),
+                    3 => self.alu_sub(val, true),
+                    4 => self.alu_and(val),
+                    5 => self.alu_xor(val),
+                    6 => self.alu_or(val),
+                    7 => self.alu_cp(val),
+                    _ => unreachable!(),
+                }
+                cycles
+            }
+
+            // --- 0xC0–0xFF ------------------------------------------------
+
+            // RET cc — 8 not-taken, 20 taken
+            0xC0 => {
+                if !self.zf() {
+                    self.pc = self.pop_word(bus);
+                    20
+                } else {
+                    8
+                }
+            }
+            0xC8 => {
+                if self.zf() {
+                    self.pc = self.pop_word(bus);
+                    20
+                } else {
+                    8
+                }
+            }
+            0xD0 => {
+                if !self.cf() {
+                    self.pc = self.pop_word(bus);
+                    20
+                } else {
+                    8
+                }
+            }
+            0xD8 => {
+                if self.cf() {
+                    self.pc = self.pop_word(bus);
+                    20
+                } else {
+                    8
+                }
+            }
+
+            // POP rr
+            0xC1 => {
+                let v = self.pop_word(bus);
+                self.set_bc(v);
+                12
+            }
+            0xD1 => {
+                let v = self.pop_word(bus);
+                self.set_de(v);
+                12
+            }
+            0xE1 => {
+                let v = self.pop_word(bus);
+                self.set_hl(v);
+                12
+            }
+            0xF1 => {
+                let v = self.pop_word(bus);
+                self.set_af(v);
+                12
+            }
+
+            // JP cc,nn — 12 not-taken, 16 taken
+            0xC2 => {
+                let nn = self.fetch_word(bus);
+                if !self.zf() {
+                    self.pc = nn;
+                    16
+                } else {
+                    12
+                }
+            }
+            0xCA => {
+                let nn = self.fetch_word(bus);
+                if self.zf() {
+                    self.pc = nn;
+                    16
+                } else {
+                    12
+                }
+            }
+            0xD2 => {
+                let nn = self.fetch_word(bus);
+                if !self.cf() {
+                    self.pc = nn;
+                    16
+                } else {
+                    12
+                }
+            }
+            0xDA => {
+                let nn = self.fetch_word(bus);
+                if self.cf() {
+                    self.pc = nn;
+                    16
+                } else {
+                    12
+                }
+            }
+
+            // JP nn
+            0xC3 => {
+                self.pc = self.fetch_word(bus);
+                16
+            }
+
+            // CALL cc,nn — 12 not-taken, 24 taken
+            0xC4 => {
+                let nn = self.fetch_word(bus);
+                if !self.zf() {
+                    self.push_word(self.pc, bus);
+                    self.pc = nn;
+                    24
+                } else {
+                    12
+                }
+            }
+            0xCC => {
+                let nn = self.fetch_word(bus);
+                if self.zf() {
+                    self.push_word(self.pc, bus);
+                    self.pc = nn;
+                    24
+                } else {
+                    12
+                }
+            }
+            0xD4 => {
+                let nn = self.fetch_word(bus);
+                if !self.cf() {
+                    self.push_word(self.pc, bus);
+                    self.pc = nn;
+                    24
+                } else {
+                    12
+                }
+            }
+            0xDC => {
+                let nn = self.fetch_word(bus);
+                if self.cf() {
+                    self.push_word(self.pc, bus);
+                    self.pc = nn;
+                    24
+                } else {
+                    12
+                }
+            }
+
+            // CALL nn (unconditional)
+            0xCD => {
+                let nn = self.fetch_word(bus);
+                self.push_word(self.pc, bus);
+                self.pc = nn;
+                24
+            }
+
+            // PUSH rr
+            0xC5 => {
+                let v = self.bc();
+                self.push_word(v, bus);
+                16
+            }
+            0xD5 => {
+                let v = self.de();
+                self.push_word(v, bus);
+                16
+            }
+            0xE5 => {
+                let v = self.hl();
+                self.push_word(v, bus);
+                16
+            }
+            0xF5 => {
+                let v = self.af();
+                self.push_word(v, bus);
+                16
+            }
+
+            // Immediate ALU — same flag logic as 0x80–0xBF; 8 cycles
+            0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE => {
+                let n = self.fetch_byte(bus);
+                match (opcode >> 3) & 0x07 {
+                    0 => self.alu_add(n, false),
+                    1 => self.alu_add(n, true),
+                    2 => self.alu_sub(n, false),
+                    3 => self.alu_sub(n, true),
+                    4 => self.alu_and(n),
+                    5 => self.alu_xor(n),
+                    6 => self.alu_or(n),
+                    7 => self.alu_cp(n),
+                    _ => unreachable!(),
+                }
+                8
+            }
+
+            // RST n — push PC, jump to vector encoded in bits 5-3
+            0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => {
+                let vec = (opcode & 0x38) as u16;
+                self.push_word(self.pc, bus);
+                self.pc = vec;
+                16
+            }
+
+            // RET
+            0xC9 => {
+                self.pc = self.pop_word(bus);
+                16
+            }
+
+            // RETI — return and enable IME immediately (no delay)
+            0xD9 => {
+                self.pc = self.pop_word(bus);
+                self.ime = true;
+                16
+            }
+
+            // LDH (a8),A / LDH A,(a8)
+            0xE0 => {
+                let a8 = self.fetch_byte(bus);
+                bus.write(0xFF00 | a8 as u16, self.a);
+                12
+            }
+            0xF0 => {
+                let a8 = self.fetch_byte(bus);
+                self.a = bus.read(0xFF00 | a8 as u16);
+                12
+            }
+
+            // LD (C),A / LD A,(C)
+            0xE2 => {
+                bus.write(0xFF00 | self.c as u16, self.a);
+                8
+            }
+            0xF2 => {
+                self.a = bus.read(0xFF00 | self.c as u16);
+                8
+            }
+
+            // ADD SP,e — flags use lower byte/nibble of SP and raw e byte
+            0xE8 => {
+                let e = self.fetch_byte(bus);
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf((self.sp & 0xF) + (e & 0xF) as u16 > 0xF);
+                self.set_cf((self.sp & 0xFF) + e as u16 > 0xFF);
+                self.sp = self.sp.wrapping_add(e as i8 as i16 as u16);
+                16
+            }
+
+            // LD HL,SP+e — same flag logic as ADD SP,e; result to HL, SP unchanged
+            0xF8 => {
+                let e = self.fetch_byte(bus);
+                self.set_zf(false);
+                self.set_nf(false);
+                self.set_hf((self.sp & 0xF) + (e & 0xF) as u16 > 0xF);
+                self.set_cf((self.sp & 0xFF) + e as u16 > 0xFF);
+                let result = self.sp.wrapping_add(e as i8 as i16 as u16);
+                self.set_hl(result);
+                12
+            }
+
+            // JP HL
+            0xE9 => {
+                self.pc = self.hl();
+                4
+            }
+
+            // LD (a16),A / LD A,(a16)
+            0xEA => {
+                let addr = self.fetch_word(bus);
+                bus.write(addr, self.a);
+                16
+            }
+            0xFA => {
+                let addr = self.fetch_word(bus);
+                self.a = bus.read(addr);
+                16
+            }
+
+            // DI / EI
+            0xF3 => {
+                self.ime = false;
+                self.ime_pending = false;
+                4
+            }
+            0xFB => {
+                self.ime_pending = true;
+                4
+            }
+
+            // LD SP,HL
+            0xF9 => {
+                self.sp = self.hl();
+                8
+            }
+
+            // Undefined opcodes
+            0xD3 | 0xDB | 0xDD | 0xE3 | 0xE4 | 0xEB | 0xEC | 0xED | 0xF4 | 0xFC | 0xFD => {
+                panic!(
+                    "undefined opcode {:#04X} at {:#06X}",
+                    opcode,
+                    self.pc.wrapping_sub(1)
+                )
+            }
+
             // --- 0xCB prefix ----------------------------------------------
             0xCB => {
                 let cb_op = self.fetch_byte(bus);
                 self.step_cb(cb_op, bus)
             }
-            _ => todo!(
-                "Task 7: opcode {:#04X} at {:#06X}",
-                opcode,
-                self.pc.wrapping_sub(1)
-            ),
         };
 
         // 5. EI promotion
@@ -699,8 +1017,118 @@ impl Cpu {
         cycles
     }
 
-    fn step_cb(&mut self, _opcode: u8, _bus: &mut Bus) -> u32 {
-        todo!("Task 8")
+    fn step_cb(&mut self, opcode: u8, bus: &mut Bus) -> u32 {
+        let r = opcode & 0x07;
+        let b = (opcode >> 3) & 0x07; // bit index for BIT/RES/SET; op index for group 0
+        let val = self.reg_read(r, bus);
+        let is_hl = r == 6;
+
+        match opcode >> 6 {
+            // Group 0: shift / rotate operations
+            0 => {
+                let result = match b {
+                    0 => {
+                        // RLC: rotate left; old bit 7 → C and bit 0
+                        let c = val >> 7;
+                        self.set_cf(c != 0);
+                        (val << 1) | c
+                    }
+                    1 => {
+                        // RRC: rotate right; old bit 0 → C and bit 7
+                        let c = val & 1;
+                        self.set_cf(c != 0);
+                        (val >> 1) | (c << 7)
+                    }
+                    2 => {
+                        // RL: rotate left through carry
+                        let old_c = self.cf() as u8;
+                        self.set_cf(val >> 7 != 0);
+                        (val << 1) | old_c
+                    }
+                    3 => {
+                        // RR: rotate right through carry
+                        let old_c = self.cf() as u8;
+                        self.set_cf(val & 1 != 0);
+                        (val >> 1) | (old_c << 7)
+                    }
+                    4 => {
+                        // SLA: shift left arithmetic; bit 7 → C, bit 0 = 0
+                        self.set_cf(val >> 7 != 0);
+                        val << 1
+                    }
+                    5 => {
+                        // SRA: shift right arithmetic; bit 0 → C, bit 7 preserved
+                        self.set_cf(val & 1 != 0);
+                        (val >> 1) | (val & 0x80)
+                    }
+                    6 => {
+                        // SWAP: swap nibbles; C=0 (other flags set below)
+                        self.set_cf(false);
+                        val.rotate_left(4)
+                    }
+                    7 => {
+                        // SRL: shift right logical; bit 0 → C, bit 7 = 0
+                        self.set_cf(val & 1 != 0);
+                        val >> 1
+                    }
+                    _ => unreachable!(),
+                };
+                self.set_zf(result == 0);
+                self.set_nf(false);
+                self.set_hf(false);
+                self.reg_write(r, result, bus);
+                if is_hl {
+                    16
+                } else {
+                    8
+                }
+            }
+            // Group 1: BIT — test bit; no write-back
+            1 => {
+                self.set_zf(val & (1 << b) == 0);
+                self.set_nf(false);
+                self.set_hf(true);
+                if is_hl {
+                    12
+                } else {
+                    8
+                }
+            }
+            // Group 2: RES — clear bit; no flags
+            2 => {
+                self.reg_write(r, val & !(1 << b), bus);
+                if is_hl {
+                    16
+                } else {
+                    8
+                }
+            }
+            // Group 3: SET — set bit; no flags
+            3 => {
+                self.reg_write(r, val | (1 << b), bus);
+                if is_hl {
+                    16
+                } else {
+                    8
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn push_word(&mut self, val: u16, bus: &mut Bus) {
+        self.sp = self.sp.wrapping_sub(1);
+        bus.write(self.sp, (val >> 8) as u8);
+        self.sp = self.sp.wrapping_sub(1);
+        bus.write(self.sp, val as u8);
+    }
+
+    fn pop_word(&mut self, bus: &mut Bus) -> u16 {
+        let lo = bus.read(self.sp) as u16;
+        self.sp = self.sp.wrapping_add(1);
+        let hi = bus.read(self.sp) as u16;
+        self.sp = self.sp.wrapping_add(1);
+        (hi << 8) | lo
     }
 
     pub(crate) fn reg_read(&self, r: u8, bus: &Bus) -> u8 {
@@ -729,6 +1157,59 @@ impl Cpu {
             7 => self.a = val,
             _ => unreachable!(),
         }
+    }
+
+    // ALU helpers — shared by 0x80–0xBF register forms and 0xC6/CE/… immediate forms
+
+    pub(crate) fn alu_add(&mut self, val: u8, with_carry: bool) {
+        let c = if with_carry { self.cf() as u8 } else { 0 };
+        let result = self.a as u16 + val as u16 + c as u16;
+        self.set_hf((self.a & 0xF) + (val & 0xF) + c > 0xF);
+        self.set_cf(result > 0xFF);
+        self.a = result as u8;
+        self.set_zf(self.a == 0);
+        self.set_nf(false);
+    }
+
+    pub(crate) fn alu_sub(&mut self, val: u8, with_carry: bool) {
+        let c = if with_carry { self.cf() as u8 } else { 0 };
+        self.set_hf((self.a & 0xF) < (val & 0xF) + c);
+        self.set_cf((self.a as u16) < val as u16 + c as u16);
+        self.a = self.a.wrapping_sub(val).wrapping_sub(c);
+        self.set_zf(self.a == 0);
+        self.set_nf(true);
+    }
+
+    pub(crate) fn alu_and(&mut self, val: u8) {
+        self.a &= val;
+        self.set_zf(self.a == 0);
+        self.set_nf(false);
+        self.set_hf(true);
+        self.set_cf(false);
+    }
+
+    pub(crate) fn alu_xor(&mut self, val: u8) {
+        self.a ^= val;
+        self.set_zf(self.a == 0);
+        self.set_nf(false);
+        self.set_hf(false);
+        self.set_cf(false);
+    }
+
+    pub(crate) fn alu_or(&mut self, val: u8) {
+        self.a |= val;
+        self.set_zf(self.a == 0);
+        self.set_nf(false);
+        self.set_hf(false);
+        self.set_cf(false);
+    }
+
+    pub(crate) fn alu_cp(&mut self, val: u8) {
+        let a = self.a;
+        self.set_hf((a & 0xF) < (val & 0xF));
+        self.set_cf(a < val);
+        self.set_zf(a == val);
+        self.set_nf(true);
     }
 }
 

@@ -257,7 +257,7 @@ Reads of unmapped IO still return 0xFF. Writes to unmapped IO are silently dropp
     - **0x76 HALT**: check HALT bug condition first. If IME=false and `(bus.if_reg() & bus.ie() & 0x1F) != 0`: set `halt_bug=true`, do NOT set `halted`. Otherwise set `halted=true`. Return 4 cycles.
     - *(req 1, 6, 7)*
 
-- [ ] 7c. Implement opcodes **0x80–0xBF** in the match block inside `Cpu::step`. Implementation notes for this range:
+- [x] 7c. Implement opcodes **0x80–0xBF** in the match block inside `Cpu::step`. Implementation notes for this range:
     - This range is ALU operations on register operands (or (HL)): ADD, ADC, SUB, SBC, AND, XOR, OR, CP. The low 3 bits encode the source register (same 0-7 encoding as 7b). 4 cycles for register source; 8 cycles for (HL) source.
     - **ADD A,r (0x80–0x87)**: result = A + r; C=carry from bit 7; H=carry from bit 3; Z=(result==0); N=0.
     - **ADC A,r (0x88–0x8F)**: result = A + r + cf; same flag logic as ADD.
@@ -269,7 +269,7 @@ Reads of unmapped IO still return 0xFF. Writes to unmapped IO are silently dropp
     - **CP r (0xB8–0xBF)**: same as SUB but discard result; only flags are written.
     - *(req 1)*
 
-- [ ] 7d. Implement opcodes **0xC0–0xFF** in the match block inside `Cpu::step`. Implementation notes for this range:
+- [x] 7d. Implement opcodes **0xC0–0xFF** in the match block inside `Cpu::step`. Implementation notes for this range:
     - **0xC0/0xC8/0xD0/0xD8 RET cc**: not-taken: 8 cycles; taken: pop PC from stack, 20 cycles.
     - **0xC1/0xD1/0xE1/0xF1 POP BC/DE/HL/AF**: pop two bytes from stack into register pair; 12 cycles. POP AF: use set_af (masks lower nibble of F to 0).
     - **0xC2/0xCA/0xD2/0xDA JP cc,nn**: not-taken: 12 cycles; taken: 16 cycles.
@@ -297,7 +297,7 @@ Reads of unmapped IO still return 0xFF. Writes to unmapped IO are silently dropp
     - All conditional (cc) opcodes: if not taken, return base cycle count; if taken, return extended cycle count.
     - *(req 1, 2, 3, 4)*
 
-- [ ] 8. Implement `Cpu::step_cb(&mut self, bus: &mut Bus) -> u32` in `cpu.rs`. Extract operand register from `opcode & 0x07` and bit index from `(opcode >> 3) & 0x07`. Use a helper `cb_reg_read(r: u8, bus: &Bus) -> u8` and `cb_reg_write(r: u8, val: u8, bus: &mut Bus)` for the 0-7 encoding. Match on `opcode >> 6` for group (0=shift/rotate, 1=BIT, 2=RES, 3=SET), then `(opcode >> 3) & 0x07` for operation within group 0 (RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL). (HL) operand costs 4 extra T-cycles on reads and 4 more on writes. BIT sets Z=!(val & (1<<b)), N=0, H=1, does not write back. RES/SET write back; no flag changes. All shift/rotate ops set Z, clear N and H, set C from shifted-out bit; SWAP clears all flags except Z. *(req 1)*
+- [x] 8. Implement `Cpu::step_cb(&mut self, bus: &mut Bus) -> u32` in `cpu.rs`. Extract operand register from `opcode & 0x07` and bit index from `(opcode >> 3) & 0x07`. Use a helper `cb_reg_read(r: u8, bus: &Bus) -> u8` and `cb_reg_write(r: u8, val: u8, bus: &mut Bus)` for the 0-7 encoding. Match on `opcode >> 6` for group (0=shift/rotate, 1=BIT, 2=RES, 3=SET), then `(opcode >> 3) & 0x07` for operation within group 0 (RLC/RRC/RL/RR/SLA/SRA/SWAP/SRL). (HL) operand costs 4 extra T-cycles on reads and 4 more on writes. BIT sets Z=!(val & (1<<b)), N=0, H=1, does not write back. RES/SET write back; no flag changes. All shift/rotate ops set Z, clear N and H, set C from shifted-out bit; SWAP clears all flags except Z. *(req 1)*
 
 - [ ] 9. Replace the body of `crates/gpuboy-core/src/lib.rs` with the `Emulator` struct: `pub struct Emulator { pub cpu: Cpu, pub bus: Bus }`. Implement `Emulator::new(rom: Vec<u8>) -> Result<Self, String>` (creates Bus via `Bus::new(Cartridge::load(rom)?)`  and `Cpu::new()`). Implement `pub fn step(&mut self) -> u32` (calls `cpu.step(&mut bus)`, then `bus.step_timer(t_cycles)`, returns t_cycles). Implement `pub fn step_frame(&mut self)` (accumulates t_cycles in a local until ≥ 70224). Implement `pub fn take_serial_output(&mut self) -> Vec<u8>` (delegates to `bus.take_serial_output()`). *(req 11)*
 

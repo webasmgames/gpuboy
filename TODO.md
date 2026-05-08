@@ -30,3 +30,4 @@ See `TODO/_template.md` for the spec format.
 - version tracking?
 - changelog? or does git history make a changelog reconstructible for us?
 - visible log/console somewhere?
+- make a utube/tiktok series on it ?
