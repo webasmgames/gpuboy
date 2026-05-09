@@ -28,3 +28,6 @@ node_modules/
 
 # Test ROM fixtures (download via scripts/download-test-roms.sh)
 tests/roms/
+
+# esbuild output
+dist/

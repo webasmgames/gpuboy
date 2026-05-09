@@ -13,6 +13,7 @@ gpuboy-core = { path = "../gpuboy-core" }
 gpuboy-render = { path = "../gpuboy-render" }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dependencies.web-sys]
 version = "0.3"

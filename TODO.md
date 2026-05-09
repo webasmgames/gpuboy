@@ -23,8 +23,8 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 6c | Visual Polish | Shell sizing with zoom, A/B button slant, error message placement, branding | ✅ |
 | 7 | Joypad Input | Keyboard + gamepad + touch D-pad wired up | ✅ |
 | 7b | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | ✅ |
-| [8](TODO/phase-8.md) | Distribution | wasm-pack --release, esbuild minification, ZIP ROM loading via file picker | 🔲 |
-| 9 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
+| 8 | Distribution | wasm-pack --release, esbuild minification, ZIP ROM loading via file picker | ✅ |
+| [9](TODO/phase-9.md) | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
 | 10 | Game Boy Color | stretch | 🔲 |
 | 11 | Stretch Goals | Shaders, rewind, save states, debugger, link cable, YouTube/TikTok-ready demo | 🔲 |
 

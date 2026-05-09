@@ -2,6 +2,7 @@ use gpuboy_core::Emulator;
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
 use std::cell::RefCell;
+use std::io::Read;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
@@ -28,6 +29,27 @@ thread_local! {
 pub fn run() {
     console_error_panic_hook::set_once();
     web_sys::console::log_1(&"gpuboy ready".into());
+}
+
+#[wasm_bindgen]
+pub fn extract_zip_rom(data: Vec<u8>) -> Result<Vec<u8>, JsValue> {
+    let cursor = std::io::Cursor::new(data);
+    let mut archive =
+        zip::ZipArchive::new(cursor).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let name = entry.name().to_lowercase();
+        if name.ends_with(".gb") || name.ends_with(".gbc") {
+            let mut bytes = Vec::new();
+            entry
+                .read_to_end(&mut bytes)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            return Ok(bytes);
+        }
+    }
+    Err(JsValue::from_str("No .gb or .gbc file found in ZIP."))
 }
 
 #[wasm_bindgen]

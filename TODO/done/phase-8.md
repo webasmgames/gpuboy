@@ -46,16 +46,16 @@ Three independent improvements bundled in one phase:
 
 ## Tasks
 
-- [ ] 1. Fetch the fflate ESM browser build and save it as `www/vendor/fflate.esm.js`:
+- [x] 1. Fetch the fflate ESM browser build and save it as `www/vendor/fflate.esm.js`:
   ```
   mkdir -p www/vendor
   curl -fsSL https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js -o www/vendor/fflate.esm.js
   ```
   *(req 2, 3)*
 
-- [ ] 2. Update `www/index.html`: change the `<input id="rom-picker">` `accept` attribute from `.gb,.gbc` to `.gb,.gbc,.zip`. *(req 2)*
+- [x] 2. Update `www/index.html`: change the `<input id="rom-picker">` `accept` attribute from `.gb,.gbc` to `.gb,.gbc,.zip`. *(req 2)*
 
-- [ ] 3. Update `www/index.js`:
+- [x] 3. Update `www/index.js`:
   - Add `import { unzipSync } from './vendor/fflate.esm.js';` at the top of the file (after the existing wasm import).
   - In the `rom-picker` `change` handler, after reading the `ArrayBuffer` into a `Uint8Array`, insert ZIP extraction before calling `loadRomBytes`:
     ```js
@@ -75,7 +75,7 @@ Three independent improvements bundled in one phase:
     ```
   *(req 2, 3)*
 
-- [ ] 4. Update `preflight.sh`:
+- [x] 4. Update `preflight.sh`:
   - Add `--release` to the wasm-pack command. *(req 1)*
   - Append a final esbuild step that minifies to `dist/www/` (creating the directory if needed):
     ```bash
@@ -86,9 +86,9 @@ Three independent improvements bundled in one phase:
     ```
   *(req 5)*
 
-- [ ] 5. Add `dist/` to `.gitignore` if not already present. *(req 5)*
+- [x] 5. Add `dist/` to `.gitignore` if not already present. *(req 5)*
 
-- [ ] 6. Update `.github/workflows/ci.yml`:
+- [x] 6. Update `.github/workflows/ci.yml`:
   - Add `--release` to the `wasm-pack build` step. *(req 1)*
   - Add an `Install esbuild` step immediately before `Prepare site`:
     ```yaml
@@ -123,4 +123,4 @@ Three independent improvements bundled in one phase:
 8. Verify sample ROMs in the hamburger menu still load.
 9. Push to main; inspect the Actions run. Confirm `wasm-pack build` and `Prepare site` succeed. Download the Pages artifact and verify `www/index.js` is minified.
 
-**Green light:** [ ]
+**Green light:** [x]

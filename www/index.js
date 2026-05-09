@@ -1,5 +1,5 @@
 import init, { run, load_rom, init_renderer, render_frame_wgpu, start_audio,
-               set_volume, set_paused, set_buttons }
+               set_volume, set_paused, set_buttons, extract_zip_rom }
     from "../pkg/gpuboy_wasm.js";
 
 function render2d(ctx2d, fb) {
@@ -81,7 +81,20 @@ async function main() {
         const reader = new FileReader();
         reader.onerror = (ev) => console.error('FileReader error:', ev.target.error);
         reader.onload = (ev) => {
-            loadRomBytes(new Uint8Array(ev.target.result));
+            let data = new Uint8Array(ev.target.result);
+            if (file.name.toLowerCase().endsWith('.zip')) {
+                try {
+                    data = extract_zip_rom(data);
+                } catch (err) {
+                    const errEl = document.getElementById('error');
+                    if (errEl) {
+                        errEl.textContent = String(err);
+                        errEl.style.display = 'block';
+                    }
+                    return;
+                }
+            }
+            loadRomBytes(data);
         };
         reader.readAsArrayBuffer(file);
     });

@@ -51,12 +51,17 @@ jobs:
         run: cargo test
 
       - name: wasm-pack build
-        run: wasm-pack build crates/gpuboy-wasm --target web --out-dir ../../pkg
+        run: wasm-pack build crates/gpuboy-wasm --target web --release --out-dir ../../pkg
+
+      - name: Install esbuild
+        run: npm install -g esbuild
 
       - name: Prepare site
         run: |
           mkdir -p _site/www _site/pkg
-          cp www/index.html www/index.js www/style.css _site/www/
+          cp www/index.html _site/www/
+          esbuild www/index.js --minify --outfile=_site/www/index.js
+          esbuild www/style.css --minify --outfile=_site/www/style.css
           cp -r pkg/. _site/pkg/
           printf '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=www/"></head></html>\n' > _site/index.html
 
