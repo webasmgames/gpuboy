@@ -1,4 +1,4 @@
-import init, { run, load_rom, step_frame, get_framebuffer, init_renderer, render_frame_wgpu }
+import init, { run, load_rom, get_framebuffer, init_renderer, render_frame_wgpu, start_audio }
     from "../pkg/gpuboy_wasm.js";
 
 function render2d(ctx2d, fb) {
@@ -24,14 +24,10 @@ async function main() {
         }
     }
 
-    // Show the active canvas, hide the other
     document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
     document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
-
-    // 2D context — always acquired (the 2D canvas is never used as a webgpu context)
     const ctx2d = document.getElementById('screen-2d').getContext('2d');
 
-    // Toggle button — only shown when wgpu succeeded
     if (useWebGpu) {
         const btn = document.getElementById('renderer-toggle');
         btn.style.display = 'inline';
@@ -43,19 +39,6 @@ async function main() {
         });
     }
 
-    let animationId = null;
-
-    function loop() {
-        step_frame();
-        const fb = get_framebuffer();
-        if (useWebGpu) {
-            render_frame_wgpu(fb);
-        } else {
-            render2d(ctx2d, fb);
-        }
-        animationId = requestAnimationFrame(loop);
-    }
-
     document.getElementById('rom-picker').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -64,8 +47,15 @@ async function main() {
         reader.onload = (ev) => {
             const data = new Uint8Array(ev.target.result);
             load_rom(data);
-            if (animationId !== null) cancelAnimationFrame(animationId);
-            loop();
+            // start_audio is idempotent; creates AudioContext + ScriptProcessorNode in Rust.
+            // The callback receives a Uint8Array framebuffer once per audio buffer (~10.7×/sec).
+            start_audio((fb) => {
+                if (useWebGpu) {
+                    render_frame_wgpu(fb);
+                } else {
+                    render2d(ctx2d, fb);
+                }
+            });
         };
         reader.readAsArrayBuffer(file);
     });

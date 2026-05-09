@@ -16,7 +16,19 @@ js-sys = "0.3"
 
 [dependencies.web-sys]
 version = "0.3"
-features = ["console", "Window", "Document", "HtmlCanvasElement"]
+features = [
+    "console",
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "AudioContext",
+    "AudioContextOptions",
+    "AudioNode",
+    "AudioBuffer",
+    "AudioProcessingEvent",
+    "ScriptProcessorNode",
+    "AudioDestinationNode",
+]
 
 [lints]
 workspace = true

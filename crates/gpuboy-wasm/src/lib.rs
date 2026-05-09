@@ -1,5 +1,7 @@
 use gpuboy_core::Emulator;
 use std::cell::RefCell;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -14,6 +16,8 @@ thread_local! {
 #[cfg(target_arch = "wasm32")]
 thread_local! {
     static RENDERER: RefCell<Option<WgpuRenderer>> = const { RefCell::new(None) };
+    static AUDIO_CTX: RefCell<Option<web_sys::AudioContext>> = const { RefCell::new(None) };
+    static SCRIPT_NODE: RefCell<Option<web_sys::ScriptProcessorNode>> = const { RefCell::new(None) };
 }
 
 #[wasm_bindgen]
@@ -106,4 +110,93 @@ pub fn render_frame_wgpu(fb: &[u8]) {
             renderer.render_frame(fb);
         }
     });
+}
+
+// web-sys's AudioBuffer::get_channel_data returns Vec<f32> (a copy), so writing to it has no
+// effect on the output buffer. This helper calls getChannelData().set() directly in JS so that
+// writes reach the actual Float32Array views inside the AudioBuffer.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(inline_js = "
+export function audio_write_channels(output_buffer, left_data, right_data) {
+    output_buffer.getChannelData(0).set(left_data);
+    output_buffer.getChannelData(1).set(right_data);
+}
+")]
+extern "C" {
+    fn audio_write_channels(
+        output: &web_sys::AudioBuffer,
+        left: &js_sys::Float32Array,
+        right: &js_sys::Float32Array,
+    );
+}
+
+/// Sets up the `ScriptProcessorNode` audio clock. Idempotent: safe to call on every ROM load.
+///
+/// `on_frame` is a JS function called once per audio buffer with a `Uint8Array` containing the
+/// latest framebuffer (RGBA, 160×144). The caller is responsible for rendering it to a canvas.
+///
+/// `ScriptProcessorNode` is deprecated but runs on the main thread where the WASM module lives,
+/// requiring no `SharedArrayBuffer` or COOP/COEP headers — both unavailable on GitHub Pages.
+/// `AudioWorklet` would need those headers. See phase-5b spec § Key Decisions.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn start_audio(on_frame: js_sys::Function) -> Result<(), JsValue> {
+    let already_started = AUDIO_CTX.with(|a| a.borrow().is_some());
+    if already_started {
+        return Ok(());
+    }
+
+    let mut opts = web_sys::AudioContextOptions::new();
+    opts.set_sample_rate(44100.0);
+    let ctx = web_sys::AudioContext::new_with_context_options(&opts)?;
+
+    const BUFFER_SIZE: u32 = 4096;
+    let script_node = ctx
+        .create_script_processor_with_buffer_size_and_number_of_input_channels_and_number_of_output_channels(
+            BUFFER_SIZE, 0, 2,
+        )?;
+
+    let n = BUFFER_SIZE as usize;
+    let closure = Closure::wrap(Box::new(move |event: web_sys::AudioProcessingEvent| {
+        let output = match event.output_buffer() {
+            Ok(buf) => buf,
+            Err(_) => return,
+        };
+        let maybe_samples =
+            EMULATOR.with(|e| e.borrow_mut().as_mut().map(|emu| emu.step_samples(n)));
+        match maybe_samples {
+            Some(samples) => {
+                let left_vec: Vec<f32> = (0..n).map(|i| samples[i * 2]).collect();
+                let right_vec: Vec<f32> = (0..n).map(|i| samples[i * 2 + 1]).collect();
+                audio_write_channels(
+                    &output,
+                    &js_sys::Float32Array::from(left_vec.as_slice()),
+                    &js_sys::Float32Array::from(right_vec.as_slice()),
+                );
+                let fb = EMULATOR.with(|e| {
+                    e.borrow()
+                        .as_ref()
+                        .map(|emu| emu.get_framebuffer().to_vec())
+                });
+                if let Some(fb) = fb {
+                    let fb_js: JsValue = js_sys::Uint8Array::from(fb.as_slice()).into();
+                    let _ = on_frame.call1(&JsValue::NULL, &fb_js);
+                }
+            }
+            None => {
+                let silence = js_sys::Float32Array::new_with_length(n as u32);
+                audio_write_channels(&output, &silence, &silence);
+            }
+        }
+    }) as Box<dyn FnMut(web_sys::AudioProcessingEvent)>);
+
+    script_node.set_onaudioprocess(Some(closure.as_ref().unchecked_ref()));
+    closure.forget();
+
+    script_node.connect_with_audio_node(&ctx.destination())?;
+    let _: Result<_, _> = ctx.resume();
+
+    AUDIO_CTX.with(|a| *a.borrow_mut() = Some(ctx));
+    SCRIPT_NODE.with(|s| *s.borrow_mut() = Some(script_node));
+    Ok(())
 }
