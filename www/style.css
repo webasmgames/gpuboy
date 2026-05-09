@@ -63,9 +63,28 @@ body {
     background: rgba(255,255,255,0.1);
 }
 
-.gb-toolbar > button svg {
+.gb-toolbar > button svg,
+#btn-github svg {
     width: 22px;
     height: 22px;
+}
+
+#btn-github {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--gb-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    text-decoration: none;
+}
+
+#btn-github:hover {
+    background: rgba(255,255,255,0.1);
 }
 
 /* ── Hamburger dropdown ── */
@@ -273,6 +292,36 @@ body {
         var(--gb-body) 2px,
         var(--gb-body) 7px
     );
+}
+
+/* ── Landscape phone: height-constrained canvas, keep side-by-side grid ── */
+@media (orientation: landscape) and (max-height: 500px) {
+    .gb-shell {
+        padding: 4px 8px 8px;
+    }
+
+    .gb-toolbar {
+        padding-bottom: 2px;
+    }
+
+    .gb-body {
+        padding: 2px 4px;
+        gap: 6px;
+    }
+
+    .gb-bezel {
+        padding: 6px;
+    }
+
+    #screen, #screen-2d {
+        width: auto !important;
+        height: min(calc(100dvh - 90px), 432px) !important;
+        aspect-ratio: 160 / 144;
+    }
+
+    .gb-speaker {
+        display: none;
+    }
 }
 
 /* ── Responsive: stack vertically below 640px ── */
