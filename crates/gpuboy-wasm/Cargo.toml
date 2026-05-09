@@ -28,6 +28,8 @@ features = [
     "AudioProcessingEvent",
     "ScriptProcessorNode",
     "AudioDestinationNode",
+    "GainNode",
+    "AudioParam",
 ]
 
 [lints]

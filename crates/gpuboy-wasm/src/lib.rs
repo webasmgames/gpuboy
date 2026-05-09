@@ -1,4 +1,6 @@
 use gpuboy_core::Emulator;
+#[cfg(target_arch = "wasm32")]
+use std::cell::Cell;
 use std::cell::RefCell;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
@@ -18,6 +20,8 @@ thread_local! {
     static RENDERER: RefCell<Option<WgpuRenderer>> = const { RefCell::new(None) };
     static AUDIO_CTX: RefCell<Option<web_sys::AudioContext>> = const { RefCell::new(None) };
     static SCRIPT_NODE: RefCell<Option<web_sys::ScriptProcessorNode>> = const { RefCell::new(None) };
+    static GAIN_NODE: RefCell<Option<web_sys::GainNode>> = const { RefCell::new(None) };
+    static PAUSED: Cell<bool> = const { Cell::new(false) };
 }
 
 #[wasm_bindgen]
@@ -158,10 +162,16 @@ pub fn start_audio(on_frame: js_sys::Function) -> Result<(), JsValue> {
 
     let n = BUFFER_SIZE as usize;
     let closure = Closure::wrap(Box::new(move |event: web_sys::AudioProcessingEvent| {
+        let paused = PAUSED.with(|p| p.get());
         let output = match event.output_buffer() {
             Ok(buf) => buf,
             Err(_) => return,
         };
+        if paused {
+            let silence = js_sys::Float32Array::new_with_length(n as u32);
+            audio_write_channels(&output, &silence, &silence);
+            return;
+        }
         let maybe_samples =
             EMULATOR.with(|e| e.borrow_mut().as_mut().map(|emu| emu.step_samples(n)));
         match maybe_samples {
@@ -193,10 +203,30 @@ pub fn start_audio(on_frame: js_sys::Function) -> Result<(), JsValue> {
     script_node.set_onaudioprocess(Some(closure.as_ref().unchecked_ref()));
     closure.forget();
 
-    script_node.connect_with_audio_node(&ctx.destination())?;
+    let gain_node = ctx.create_gain()?;
+    gain_node.gain().set_value(1.0);
+    script_node.connect_with_audio_node(&gain_node)?;
+    gain_node.connect_with_audio_node(&ctx.destination())?;
+    GAIN_NODE.with(|g| *g.borrow_mut() = Some(gain_node));
     let _: Result<_, _> = ctx.resume();
 
     AUDIO_CTX.with(|a| *a.borrow_mut() = Some(ctx));
     SCRIPT_NODE.with(|s| *s.borrow_mut() = Some(script_node));
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn set_volume(vol: f32) {
+    GAIN_NODE.with(|g| {
+        if let Some(node) = g.borrow().as_ref() {
+            node.gain().set_value(vol);
+        }
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn set_paused(paused: bool) {
+    PAUSED.with(|p| p.set(paused));
 }

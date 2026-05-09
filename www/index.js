@@ -1,4 +1,5 @@
-import init, { run, load_rom, get_framebuffer, init_renderer, render_frame_wgpu, start_audio }
+import init, { run, load_rom, init_renderer, render_frame_wgpu, start_audio,
+               set_volume, set_paused }
     from "../pkg/gpuboy_wasm.js";
 
 function render2d(ctx2d, fb) {
@@ -10,11 +11,13 @@ async function main() {
     await init();
     run();
 
-    // Attempt WebGPU init via Rust/wgpu
     let useWebGpu = false;
+    let webGpuAvailable = false;
+
     try {
         await init_renderer('screen');
         useWebGpu = true;
+        webGpuAvailable = true;
     } catch (err) {
         console.error('wgpu init failed:', err);
         const errEl = document.getElementById('error');
@@ -28,16 +31,25 @@ async function main() {
     document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
     const ctx2d = document.getElementById('screen-2d').getContext('2d');
 
-    if (useWebGpu) {
-        const btn = document.getElementById('renderer-toggle');
-        btn.style.display = 'inline';
-        btn.addEventListener('click', () => {
+    // Renderer toggle in hamburger menu
+    const menuRenderer = document.getElementById('menu-renderer');
+    menuRenderer.textContent = useWebGpu ? 'Switch to 2D canvas' : 'Switch to WebGPU';
+    if (webGpuAvailable) {
+        menuRenderer.addEventListener('click', () => {
             useWebGpu = !useWebGpu;
             document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
             document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
-            btn.textContent = useWebGpu ? 'Switch to 2D canvas' : 'Switch to WebGPU';
+            menuRenderer.textContent = useWebGpu ? 'Switch to 2D canvas' : 'Switch to WebGPU';
+            gbMenu.classList.add('hidden');
         });
+    } else {
+        menuRenderer.disabled = true;
     }
+
+    // ROM file picker
+    document.getElementById('btn-folder').addEventListener('click', () => {
+        document.getElementById('rom-picker').click();
+    });
 
     document.getElementById('rom-picker').addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -47,7 +59,7 @@ async function main() {
         reader.onload = (ev) => {
             const data = new Uint8Array(ev.target.result);
             load_rom(data);
-            // start_audio is idempotent; creates AudioContext + ScriptProcessorNode in Rust.
+            // start_audio is idempotent; creates AudioContext + GainNode + ScriptProcessorNode in Rust.
             // The callback receives a Uint8Array framebuffer once per audio buffer (~10.7×/sec).
             start_audio((fb) => {
                 if (useWebGpu) {
@@ -58,6 +70,53 @@ async function main() {
             });
         };
         reader.readAsArrayBuffer(file);
+    });
+
+    // Audio toggle
+    let audioMuted = false;
+    document.getElementById('btn-audio').addEventListener('click', () => {
+        audioMuted = !audioMuted;
+        set_volume(audioMuted ? 0.0 : 1.0);
+        document.getElementById('icon-audio-on').style.display  = audioMuted ? 'none' : '';
+        document.getElementById('icon-audio-off').style.display = audioMuted ? ''     : 'none';
+    });
+
+    // Play/pause toggle
+    let emulatorPaused = false;
+    document.getElementById('btn-playpause').addEventListener('click', () => {
+        emulatorPaused = !emulatorPaused;
+        set_paused(emulatorPaused);
+        document.getElementById('icon-pause').style.display = emulatorPaused ? 'none' : '';
+        document.getElementById('icon-play').style.display  = emulatorPaused ? ''     : 'none';
+    });
+
+    // Hamburger menu
+    const gbMenu = document.getElementById('gb-menu');
+    document.getElementById('btn-menu').addEventListener('click', (e) => {
+        e.stopPropagation();
+        gbMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!gbMenu.contains(e.target) && e.target !== document.getElementById('btn-menu')) {
+            gbMenu.classList.add('hidden');
+        }
+    });
+
+    // Zoom buttons
+    document.querySelectorAll('.zoom-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const zoom = parseInt(btn.dataset.zoom, 10);
+            const w = `${160 * zoom}px`;
+            const h = `${144 * zoom}px`;
+            document.getElementById('screen').style.width     = w;
+            document.getElementById('screen').style.height    = h;
+            document.getElementById('screen-2d').style.width  = w;
+            document.getElementById('screen-2d').style.height = h;
+            document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            gbMenu.classList.add('hidden');
+        });
     });
 }
 

@@ -1,0 +1,297 @@
+:root {
+    --gb-body:        #3a3a3a;
+    --gb-body-dark:   #2a2a2a;
+    --gb-bezel:       #c8c4b0;
+    --gb-screen-bg:   #1a1a1a;
+    --gb-accent:      #8b3a8b;
+    --gb-accent-dark: #6b2a6b;
+    --gb-btn-ab:      #9b2d8b;
+    --gb-btn-dpad:    #2a2a2a;
+    --gb-btn-sys:     #666;
+    --gb-text:        #e0e0e0;
+    --gb-text-dim:    #999;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 1rem;
+    font-family: sans-serif;
+    min-height: 100vh;
+}
+
+.gb-shell {
+    background: var(--gb-body);
+    border-radius: 16px 16px 40px 16px;
+    padding: 12px 12px 72px;
+    max-width: 700px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Toolbar ── */
+.gb-toolbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    padding-bottom: 8px;
+    position: relative;
+}
+
+.gb-toolbar > button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--gb-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gb-toolbar > button:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.gb-toolbar > button svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* ── Hamburger dropdown ── */
+.gb-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    background: var(--gb-body-dark);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 6px;
+    z-index: 100;
+    min-width: 190px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gb-menu.hidden { display: none; }
+
+.gb-menu > button {
+    background: transparent;
+    border: none;
+    color: var(--gb-text);
+    cursor: pointer;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.gb-menu > button:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.menu-zoom-group {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    padding: 2px 6px 6px;
+}
+
+.zoom-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: var(--gb-text);
+    cursor: pointer;
+    padding: 6px 4px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.zoom-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.zoom-btn.active {
+    background: var(--gb-accent);
+    border-color: var(--gb-accent);
+}
+
+/* ── Body: D-pad | Screen | A/B ── */
+.gb-body {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "left center right"
+        ".    ss     .    ";
+    align-items: center;
+    gap: 12px;
+    padding: 8px 4px;
+}
+
+.gb-left   { grid-area: left;   display: flex; align-items: center; justify-content: center; }
+.gb-center { grid-area: center; display: flex; flex-direction: column; align-items: center; }
+.gb-right  { grid-area: right;  display: flex; align-items: center; justify-content: center; }
+
+/* ── D-pad ── */
+#dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 32px);
+    grid-template-rows: repeat(3, 32px);
+    grid-template-areas:
+        ".    up    ."
+        "left center right"
+        ".    down  .";
+    gap: 2px;
+}
+
+#dpad-up    { grid-area: up; }
+#dpad-left  { grid-area: left; }
+.dpad-center { grid-area: center; background: var(--gb-btn-dpad); border-radius: 2px; }
+#dpad-right { grid-area: right; }
+#dpad-down  { grid-area: down; }
+
+#dpad-up, #dpad-left, #dpad-right, #dpad-down {
+    background: var(--gb-btn-dpad);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 0;
+}
+
+#dpad-up:hover, #dpad-left:hover, #dpad-right:hover, #dpad-down:hover {
+    background: #484848;
+}
+
+/* ── Screen bezel ── */
+.gb-bezel {
+    background: var(--gb-bezel);
+    border-radius: 8px;
+    padding: 14px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+}
+
+#screen, #screen-2d {
+    width: 480px;
+    height: 432px;
+    image-rendering: pixelated;
+    display: block;
+    background: var(--gb-screen-bg);
+}
+
+#error {
+    color: #f44;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 6px 0 0;
+    white-space: pre-wrap;
+    display: none;
+    max-width: 480px;
+    word-break: break-all;
+}
+
+/* ── Select / Start ── */
+.gb-select-start {
+    grid-area: ss;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 4px;
+}
+
+#btn-select, #btn-start {
+    background: var(--gb-btn-sys);
+    border: none;
+    color: var(--gb-text);
+    cursor: pointer;
+    padding: 5px 14px;
+    border-radius: 12px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+#btn-select:hover, #btn-start:hover { background: #888; }
+
+/* ── A / B buttons ── */
+.gb-ab {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+#btn-a, #btn-b {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--gb-btn-ab);
+    border: none;
+    color: var(--gb-text);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#btn-a:hover, #btn-b:hover { background: var(--gb-accent-dark); }
+
+/* ── Speaker grill ── */
+.gb-speaker {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    width: 62px;
+    height: 42px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--gb-body-dark),
+        var(--gb-body-dark) 2px,
+        var(--gb-body) 2px,
+        var(--gb-body) 7px
+    );
+}
+
+/* ── Responsive: stack vertically below 640px ── */
+@media (max-width: 639px) {
+    .gb-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .gb-left         { order: 1; }
+    .gb-center       { order: 2; }
+    .gb-right        { order: 3; }
+    .gb-select-start { order: 4; }
+
+    #screen, #screen-2d {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 160 / 144;
+    }
+}

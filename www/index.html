@@ -4,18 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>gpuboy</title>
-    <style>
-        body { background: #111; display: flex; flex-direction: column; align-items: center; padding: 1rem; }
-        #screen, #screen-2d { width: 480px; height: 432px; image-rendering: pixelated; }
-        #error { color: #f44; font-family: monospace; padding: 1rem; white-space: pre-wrap; display: none; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <input type="file" id="rom-picker" accept=".gb,.gbc">
-    <canvas id="screen" width="160" height="144"></canvas>
-    <canvas id="screen-2d" width="160" height="144" style="display: none;"></canvas>
-    <button id="renderer-toggle" style="display: none;">Switch to 2D canvas</button>
-    <div id="error"></div>
+    <div class="gb-shell">
+        <div class="gb-toolbar">
+            <button id="btn-menu" title="Menu">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <rect x="2" y="4" width="16" height="2" rx="1"/>
+                    <rect x="2" y="9" width="16" height="2" rx="1"/>
+                    <rect x="2" y="14" width="16" height="2" rx="1"/>
+                </svg>
+            </button>
+            <button id="btn-folder" title="Open ROM">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2 6a2 2 0 012-2h3.17a2 2 0 011.42.59L9.41 6H16a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                </svg>
+            </button>
+            <button id="btn-audio" title="Mute">
+                <svg id="icon-audio-on" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 4L6 8H3v4h3l4 4V4z"/>
+                    <path d="M13.5 7.5a3 3 0 010 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <svg id="icon-audio-off" viewBox="0 0 20 20" fill="currentColor" style="display:none">
+                    <path d="M10 4L6 8H3v4h3l4 4V4z"/>
+                    <path d="M13 8l4 4m0-4l-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button id="btn-playpause" title="Pause">
+                <svg id="icon-pause" viewBox="0 0 20 20" fill="currentColor">
+                    <rect x="4" y="3" width="4" height="14" rx="1"/>
+                    <rect x="12" y="3" width="4" height="14" rx="1"/>
+                </svg>
+                <svg id="icon-play" viewBox="0 0 20 20" fill="currentColor" style="display:none">
+                    <polygon points="5,3 17,10 5,17"/>
+                </svg>
+            </button>
+            <div id="gb-menu" class="gb-menu hidden">
+                <button id="menu-renderer">Switch to 2D canvas</button>
+                <div class="menu-zoom-group">
+                    <button class="zoom-btn" data-zoom="2">2×</button>
+                    <button class="zoom-btn active" data-zoom="3">3×</button>
+                    <button class="zoom-btn" data-zoom="4">4×</button>
+                </div>
+            </div>
+        </div>
+
+        <input type="file" id="rom-picker" accept=".gb,.gbc" style="display:none">
+
+        <div class="gb-body">
+            <div class="gb-left">
+                <div id="dpad">
+                    <button id="dpad-up"></button>
+                    <button id="dpad-left"></button>
+                    <div class="dpad-center"></div>
+                    <button id="dpad-right"></button>
+                    <button id="dpad-down"></button>
+                </div>
+            </div>
+
+            <div class="gb-center">
+                <div class="gb-bezel">
+                    <canvas id="screen" width="160" height="144"></canvas>
+                    <canvas id="screen-2d" width="160" height="144" style="display:none"></canvas>
+                    <div id="error"></div>
+                </div>
+            </div>
+
+            <div class="gb-right">
+                <div class="gb-ab">
+                    <button id="btn-b">B</button>
+                    <button id="btn-a">A</button>
+                </div>
+            </div>
+
+            <div class="gb-select-start">
+                <button id="btn-select">SELECT</button>
+                <button id="btn-start">START</button>
+            </div>
+        </div>
+
+        <div class="gb-speaker"></div>
+    </div>
+
     <script type="module" src="index.js"></script>
 </body>
 </html>
