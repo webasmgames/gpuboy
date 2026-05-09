@@ -2,6 +2,9 @@
 name = "gpuboy-wasm"
 version = "0.1.0"
 edition = "2021"
+description = "Game Boy (DMG) emulator for the browser — Rust + WebAssembly + WebGPU"
+repository = "https://github.com/webasmgames/gpuboy"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib"]

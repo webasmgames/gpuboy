@@ -4,7 +4,7 @@ A Game Boy (DMG) emulator running in the browser via Rust + WebAssembly + WebGPU
 
 ## Vision
 
-Accurate DMG emulation at 60fps with audio, validated against standard test ROM suites (Blargg, Mooneye). Game Boy Color (GBC) as a stretch goal.
+Accurate DMG emulation at 60fps with audio, validated against standard test ROM suites (Blargg, Mooneye). Stretch goals: MBC accuracy, CRT shaders, rewind, audio accuracy.
 
 ## Phases
 
@@ -25,8 +25,10 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 7b | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | ✅ |
 | 8 | Distribution | wasm-pack --release, esbuild minification, ZIP ROM loading via file picker | ✅ |
 | [9](TODO/phase-9.md) | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
-| 10 | Game Boy Color | stretch | 🔲 |
-| 11 | Stretch Goals | Shaders, rewind, save states, debugger, link cable, YouTube/TikTok-ready demo | 🔲 |
+| 10 | MBC Accuracy | MBC2 support, MBC3 RTC accuracy + persistence | 🔲 |
+| 11 | Shaders | CRT filter, scanlines, LCD grid via WebGPU post-processing pass | 🔲 |
+| 12 | Rewind | Frame-by-frame rewind via ring buffer, hold key to step back ~30s | 🔲 |
+| 13 | Audio Accuracy | Envelope/sweep timing, length counter edge cases, stereo panning, resampling quality | 🔲 |
 
 See `TODO/phase-N.md` (or `TODO/phase-Na.md` / `TODO/phase-Nb.md`) for each phase spec.
 See `TODO/_template.md` for the spec format.
