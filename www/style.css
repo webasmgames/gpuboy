@@ -29,8 +29,9 @@ body {
     background: var(--gb-body);
     border-radius: 16px 16px 40px 16px;
     padding: 12px 12px 72px;
-    max-width: 700px;
-    width: 100%;
+    width: fit-content;
+    min-width: 400px;
+    max-width: 100%;
     position: relative;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     display: flex;
@@ -243,11 +244,14 @@ body {
     color: #f44;
     font-family: monospace;
     font-size: 12px;
-    padding: 6px 0 0;
+    padding: 6px 12px;
     white-space: pre-wrap;
     display: none;
-    max-width: 480px;
     word-break: break-all;
+    background: rgba(255,68,68,0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(255,68,68,0.25);
+    margin-bottom: 4px;
 }
 
 /* ── Select / Start ── */
@@ -279,7 +283,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-items: flex-end;
+    align-items: center;
+    transform: rotate(20deg);
 }
 
 #btn-a, #btn-b {
@@ -299,6 +304,11 @@ body {
 
 #btn-a:hover, #btn-b:hover { background: var(--gb-accent-dark); }
 
+#btn-a span, #btn-b span {
+    display: inline-block;
+    transform: rotate(-20deg);
+}
+
 /* ── Speaker grill ── */
 .gb-speaker {
     position: absolute;
@@ -315,6 +325,40 @@ body {
         var(--gb-body) 7px
     );
 }
+
+/* ── Branding ── */
+.gb-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 0 6px;
+}
+
+.gb-brand-name {
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 700;
+    color: var(--gb-text-dim);
+    letter-spacing: 0.06em;
+}
+
+.gb-brand-version {
+    font-size: 10px;
+    color: var(--gb-text-dim);
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+}
+
+#webgpu-status {
+    font-size: 10px;
+    font-style: normal;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+#webgpu-status.enabled  { color: #4caf50; }
+#webgpu-status.disabled { color: #f44; }
 
 /* ── Landscape phone: height-constrained canvas, keep side-by-side grid ── */
 @media (orientation: landscape) and (max-height: 500px) {

@@ -60,6 +60,8 @@
 
         <input type="file" id="rom-picker" accept=".gb,.gbc" style="display:none">
 
+        <div id="error"></div>
+
         <div class="gb-body">
             <div class="gb-left">
                 <div id="dpad">
@@ -75,14 +77,13 @@
                 <div class="gb-bezel">
                     <canvas id="screen" width="160" height="144"></canvas>
                     <canvas id="screen-2d" width="160" height="144" style="display:none"></canvas>
-                    <div id="error"></div>
                 </div>
             </div>
 
             <div class="gb-right">
                 <div class="gb-ab">
-                    <button id="btn-b">B</button>
-                    <button id="btn-a">A</button>
+                    <button id="btn-a"><span>A</span></button>
+                    <button id="btn-b"><span>B</span></button>
                 </div>
             </div>
 
@@ -90,6 +91,12 @@
                 <button id="btn-select">SELECT</button>
                 <button id="btn-start">START</button>
             </div>
+        </div>
+
+        <div class="gb-brand">
+            <span class="gb-brand-name">GpuBoy</span>
+            <span class="gb-brand-version">v0.1.0</span>
+            <span id="webgpu-status"></span>
         </div>
 
         <div class="gb-speaker"></div>

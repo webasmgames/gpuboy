@@ -49,13 +49,13 @@ Recommendation: **B** — simplest to implement, no positioning hacks, visible w
 
 ### Tasks (pending error location decision)
 
-- [ ] 1. In `www/style.css`, replace `.gb-shell { width: 100%; max-width: 700px; }` with `width: fit-content; min-width: 400px; max-width: 100%;`. *(req 1)*
+- [x] 1. In `www/style.css`, replace `.gb-shell { width: 100%; max-width: 700px; }` with `width: fit-content; min-width: 400px; max-width: 100%;`. *(req 1)*
 
-- [ ] 2. In `www/style.css`, add `transform: rotate(20deg); align-items: center;` to `.gb-ab`. Wrap the text content of `#btn-a` and `#btn-b` in `<span>` tags in `index.html` and add `#btn-a span, #btn-b span { display: inline-block; transform: rotate(-20deg); }` to the CSS. *(req 2)*
+- [x] 2. In `www/style.css`, add `transform: rotate(20deg); align-items: center;` to `.gb-ab`. Wrap the text content of `#btn-a` and `#btn-b` in `<span>` tags in `index.html` and add `#btn-a span, #btn-b span { display: inline-block; transform: rotate(-20deg); }` to the CSS. *(req 2)*
 
-- [ ] 3. Move `#error` out of `.gb-bezel` in `index.html` — place it per the chosen option (A/B/C). Update `www/style.css` to style it in its new location. No JS changes needed if option B or C; option A requires adding a close button handler. *(req 3)*
+- [x] 3. Move `#error` out of `.gb-bezel` in `index.html` — place it per the chosen option (A/B/C). Update `www/style.css` to style it in its new location. No JS changes needed if option B or C; option A requires adding a close button handler. *(req 3)*
 
-- [ ] 4. Add a `<div class="gb-brand">` element to the shell body (below the bezel, above the speaker area). Inside it: `<span class="gb-brand-name">GpuBoy</span>` and `<span class="gb-brand-version">v0.1.0</span>`. Style in CSS: small italic font, `--gb-text-dim` colour, positioned centrally below the screen. *(req 4)*
+- [x] 4. Add a `<div class="gb-brand">` element to the shell body (below the bezel, above the speaker area). Inside it: `<span class="gb-brand-name">GpuBoy</span>` and `<span class="gb-brand-version">v0.1.0</span>`. Style in CSS: small italic font, `--gb-text-dim` colour, positioned centrally below the screen. *(req 4)*
 
 ## Manual Testing
 
@@ -67,4 +67,4 @@ Recommendation: **B** — simplest to implement, no positioning hacks, visible w
 6. Confirm "GpuBoy" and the version number are visible on the shell body in a legible, DMG-appropriate style.
 7. Load a ROM. Confirm audio, zoom, play/pause, renderer toggle, and responsive layout all still work.
 
-**Green light:** [ ]
+**Green light:** [x]

@@ -28,11 +28,12 @@ async function main() {
         webGpuAvailable = true;
     } catch (err) {
         console.error('wgpu init failed:', err);
-        const errEl = document.getElementById('error');
-        if (errEl) {
-            errEl.textContent = `WebGPU unavailable: ${err}. Falling back to 2D canvas.`;
-            errEl.style.display = 'block';
-        }
+    }
+
+    const statusEl = document.getElementById('webgpu-status');
+    if (statusEl) {
+        statusEl.textContent = webGpuAvailable ? 'WebGPU Enabled' : 'WebGPU Disabled';
+        statusEl.className   = webGpuAvailable ? 'enabled'        : 'disabled';
     }
 
     document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
