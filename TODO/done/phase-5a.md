@@ -333,31 +333,31 @@ pub fn step_samples(&mut self, n: usize) -> Vec<f32> {
 
 ## Tasks
 
-- [ ] 1. Create `crates/gpuboy-core/src/apu.rs`. Define `Apu`, `Ch1`, `Ch2`, `Ch3`, `Ch4` structs exactly as in §Data Structures. Add `pub mod apu;` and `use crate::apu::Apu;` to `crates/gpuboy-core/src/lib.rs`. *(req 1)*
+- [x] 1. Create `crates/gpuboy-core/src/apu.rs`. Define `Apu`, `Ch1`, `Ch2`, `Ch3`, `Ch4` structs exactly as in §Data Structures. Add `pub mod apu;` and `use crate::apu::Apu;` to `crates/gpuboy-core/src/lib.rs`. *(req 1)*
 
-- [ ] 2. Implement `Apu::new(sample_rate: f32) -> Apu`. Initialize: `enabled = false`, `nr50 = 0x77`, `nr51 = 0xF3`, `fs_cycles = 0`, `fs_step = 0`, `sample_cycles = 0.0`, `sample_period = 4194304.0 / sample_rate`. All channel fields zero/false/disabled. Ch4: `lfsr = 0x7FFF`. *(req 2, 3)*
+- [x] 2. Implement `Apu::new(sample_rate: f32) -> Apu`. Initialize: `enabled = false`, `nr50 = 0x77`, `nr51 = 0xF3`, `fs_cycles = 0`, `fs_step = 0`, `sample_cycles = 0.0`, `sample_period = 4194304.0 / sample_rate`. All channel fields zero/false/disabled. Ch4: `lfsr = 0x7FFF`. *(req 2, 3)*
 
-- [ ] 3. Implement `Apu::read(&self, addr: u16) -> u8` following §`Apu` register map. Route wave RAM reads (0xFF30–0xFF3F) to `self.ch3.wave_ram[(addr - 0xFF30) as usize]`. *(req 1, 9)*
+- [x] 3. Implement `Apu::read(&self, addr: u16) -> u8` following §`Apu` register map. Route wave RAM reads (0xFF30–0xFF3F) to `self.ch3.wave_ram[(addr - 0xFF30) as usize]`. *(req 1, 9)*
 
-- [ ] 4. Implement `Apu::write(&mut self, addr: u16, val: u8)`. When `!self.enabled && addr != 0xFF26`, return immediately. Route each address per §register map. For NRx4 trigger writes (bit 7 set): call the appropriate trigger handler. NR52 write: handle enable/disable transitions per §register map write behavior. Route wave RAM writes to `self.ch3.wave_ram`. *(req 1, 2, 5, 7)*
+- [x] 4. Implement `Apu::write(&mut self, addr: u16, val: u8)`. When `!self.enabled && addr != 0xFF26`, return immediately. Route each address per §register map. For NRx4 trigger writes (bit 7 set): call the appropriate trigger handler. NR52 write: handle enable/disable transitions per §register map write behavior. Route wave RAM writes to `self.ch3.wave_ram`. *(req 1, 2, 5, 7)*
 
-- [ ] 5. Implement private trigger handlers `trigger_ch1`, `trigger_ch2`, `trigger_ch3`, `trigger_ch4` on `Apu`. Follow the 8-step §Trigger Behavior exactly. *(req 5, 7)*
+- [x] 5. Implement private trigger handlers `trigger_ch1`, `trigger_ch2`, `trigger_ch3`, `trigger_ch4` on `Apu`. Follow the 8-step §Trigger Behavior exactly. *(req 5, 7)*
 
-- [ ] 6. Implement `Apu::step(&mut self, t_cycles: u32, out: &mut Vec<f32>)`. Per T-cycle: decrement all four `freq_timer`s; on 0 reload and advance duty/wave/LFSR per §Frequency Timer Clocking. Accumulate `fs_cycles`; on ≥ 8192 subtract and call `tick_frame_sequencer`. Accumulate `sample_cycles`; on ≥ `sample_period` subtract and call `mix_sample`. When `!self.enabled`, skip channel updates and push `[0.0, 0.0]` at sample threshold. *(req 2, 3, 4, 6, 8)*
+- [x] 6. Implement `Apu::step(&mut self, t_cycles: u32, out: &mut Vec<f32>)`. Per T-cycle: decrement all four `freq_timer`s; on 0 reload and advance duty/wave/LFSR per §Frequency Timer Clocking. Accumulate `fs_cycles`; on ≥ 8192 subtract and call `tick_frame_sequencer`. Accumulate `sample_cycles`; on ≥ `sample_period` subtract and call `mix_sample`. When `!self.enabled`, skip channel updates and push `[0.0, 0.0]` at sample threshold. *(req 2, 3, 4, 6, 8)*
 
-- [ ] 7. Implement `Apu::tick_frame_sequencer(&mut self)` following §Frame Sequencer Tick Schedule. Advance `fs_step = (fs_step + 1) % 8`. *(req 4, 6, 8)*
+- [x] 7. Implement `Apu::tick_frame_sequencer(&mut self)` following §Frame Sequencer Tick Schedule. Advance `fs_step = (fs_step + 1) % 8`. *(req 4, 6, 8)*
 
-- [ ] 8. Implement `Apu::tick_sweep(&mut self)` following §Sweep Calculation exactly. *(req 6)*
+- [x] 8. Implement `Apu::tick_sweep(&mut self)` following §Sweep Calculation exactly. *(req 6)*
 
-- [ ] 9. Implement `Apu::mix_sample(&self, out: &mut Vec<f32>)` following §Sample Mixing Formula. *(req 3, 9)*
+- [x] 9. Implement `Apu::mix_sample(&self, out: &mut Vec<f32>)` following §Sample Mixing Formula. *(req 3, 9)*
 
-- [ ] 10. Implement sample helpers as private functions in `apu.rs`: `duty_sample(duty: u8, pos: u8) -> f32`, `wave_sample(wave_ram: &[u8; 16], pos: u8, output_level: u8) -> f32`, `noise_sample(lfsr: u16) -> f32`. *(req 3)*
+- [x] 10. Implement sample helpers as private functions in `apu.rs`: `duty_sample(duty: u8, pos: u8) -> f32`, `wave_sample(wave_ram: &[u8; 16], pos: u8, output_level: u8) -> f32`, `noise_sample(lfsr: u16) -> f32`. *(req 3)*
 
-- [ ] 11. Add `pub apu: Apu` to `Bus` in `bus.rs`. In `Bus::new` add `apu: Apu::new(44100.0)`. In `Bus::read` add `0xFF10..=0xFF3F => self.apu.read(addr)` before the catch-all. In `Bus::write` add `0xFF10..=0xFF3F => self.apu.write(addr, val)` before the catch-all. Add `pub fn step_apu(&mut self, t_cycles: u32, out: &mut Vec<f32>) { self.apu.step(t_cycles, out); }`. *(req 1)*
+- [x] 11. Add `pub apu: Apu` to `Bus` in `bus.rs`. In `Bus::new` add `apu: Apu::new(44100.0)`. In `Bus::read` add `0xFF10..=0xFF3F => self.apu.read(addr)` before the catch-all. In `Bus::write` add `0xFF10..=0xFF3F => self.apu.write(addr, val)` before the catch-all. Add `pub fn step_apu(&mut self, t_cycles: u32, out: &mut Vec<f32>) { self.apu.step(t_cycles, out); }`. *(req 1)*
 
-- [ ] 12. Add `Emulator::step_samples` to `lib.rs` following §`Emulator::step_samples` exactly. Keep `step_frame` unchanged. *(req 3)*
+- [x] 12. Add `Emulator::step_samples` to `lib.rs` following §`Emulator::step_samples` exactly. Keep `step_frame` unchanged. *(req 3)*
 
-- [ ] 13. Add smoke test in `apu.rs` under `#[cfg(test)]`:
+- [x] 13. Add smoke test in `apu.rs` under `#[cfg(test)]`:
     ```rust
     #[test]
     fn apu_generates_samples() {
@@ -383,4 +383,4 @@ pub fn step_samples(&mut self, n: usize) -> Vec<f32> {
 2. `cargo clippy -- -D warnings` — clean.
 3. No browser testing required for this phase.
 
-**Green light:** [ ]
+**Green light:** [x]

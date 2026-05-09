@@ -1,3 +1,4 @@
+pub mod apu;
 pub mod bus;
 pub mod cartridge;
 pub mod cpu;
@@ -37,6 +38,18 @@ impl Emulator {
         while total < 70224 {
             total += self.step();
         }
+    }
+
+    pub fn step_samples(&mut self, n: usize) -> Vec<f32> {
+        let mut out = Vec::with_capacity(n * 2);
+        while out.len() < n * 2 {
+            let t = self.cpu.step(&mut self.bus);
+            self.bus.step_timer(t);
+            self.bus.step_ppu(t);
+            self.bus.step_apu(t, &mut out);
+        }
+        out.truncate(n * 2);
+        out
     }
 
     pub fn take_serial_output(&mut self) -> Vec<u8> {

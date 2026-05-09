@@ -1,3 +1,4 @@
+use crate::apu::Apu;
 use crate::cartridge::Cartridge;
 use crate::ppu::Ppu;
 use crate::timer::Timer;
@@ -8,6 +9,7 @@ pub struct Bus {
     hram: [u8; 0x7F],
     timer: Timer,
     pub ppu: Ppu,
+    pub apu: Apu,
     vram: [u8; 0x2000],
     oam: [u8; 0xA0],
     sb: u8,
@@ -25,6 +27,7 @@ impl Bus {
             hram: [0; 0x7F],
             timer: Timer::new(),
             ppu: Ppu::new(),
+            apu: Apu::new(44100.0),
             vram: [0; 0x2000],
             oam: [0; 0xA0],
             sb: 0,
@@ -46,6 +49,7 @@ impl Bus {
             0xFF02 => self.sc,
             0xFF04..=0xFF07 => self.timer.read(addr),
             0xFF0F => self.interrupt_flags,
+            0xFF10..=0xFF3F => self.apu.read(addr),
             0xFF40 => self.ppu.lcdc,
             0xFF41 => self.ppu.stat | 0x80,
             0xFF42 => self.ppu.scy,
@@ -84,6 +88,7 @@ impl Bus {
             }
             0xFF04..=0xFF07 => self.timer.write(addr, val),
             0xFF0F => self.interrupt_flags = val & 0x1F,
+            0xFF10..=0xFF3F => self.apu.write(addr, val),
             0xFF40 => self.ppu.lcdc = val,
             0xFF41 => self.ppu.stat = (self.ppu.stat & 0x07) | (val & 0xF8),
             0xFF42 => self.ppu.scy = val,
@@ -126,6 +131,10 @@ impl Bus {
         if overflows > 0 {
             self.set_if_bit(2);
         }
+    }
+
+    pub fn step_apu(&mut self, t_cycles: u32, out: &mut Vec<f32>) {
+        self.apu.step(t_cycles, out);
     }
 
     pub fn step_ppu(&mut self, t_cycles: u32) {
