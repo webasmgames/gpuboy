@@ -56,7 +56,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p _site/www _site/pkg
-          cp www/index.html www/index.js _site/www/
+          cp www/index.html www/index.js www/style.css _site/www/
           cp -r pkg/. _site/pkg/
           printf '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=www/"></head></html>\n' > _site/index.html
 

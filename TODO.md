@@ -18,7 +18,7 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 4 | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | ✅ |
 | 5a | APU Core | 4 channels, frame sequencer, step_samples | ✅ |
 | 5b | Audio Clock | ScriptProcessorNode replaces rAF loop | ✅ |
-| [6](TODO/phase-6.md) | Web UI | Game Boy shell (DMG aesthetic), toolbar icons, play/pause, audio mute, zoom, hamburger menu, touch control stubs | 🔲 |
+| 6 | Web UI | Game Boy shell (DMG aesthetic), toolbar icons, play/pause, audio mute, zoom, hamburger menu, touch control stubs | ✅ |
 | 6b | Web UI — Sample ROMs | Sample ROM dropdown bundled with the app | 🔲 |
 | 7 | Joypad Input | Keyboard + gamepad + touch D-pad wired up | 🔲 |
 | 7b | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | 🔲 |
