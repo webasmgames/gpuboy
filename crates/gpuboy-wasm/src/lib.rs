@@ -41,7 +41,8 @@ pub fn extract_zip_rom(data: Vec<u8>) -> Result<Vec<u8>, JsValue> {
             .by_index(i)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
         let name = entry.name().to_lowercase();
-        if name.ends_with(".gb") || name.ends_with(".gbc") {
+        let basename = name.rsplit('/').next().unwrap_or(&name);
+        if (name.ends_with(".gb") || name.ends_with(".gbc")) && !basename.starts_with("._") {
             let mut bytes = Vec::new();
             entry
                 .read_to_end(&mut bytes)
