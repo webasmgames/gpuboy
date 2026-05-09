@@ -10,21 +10,21 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 
 | Phase | Name | Notes | Status |
 |---|---|---|---|
-| [0](TODO/done/phase-0.md) | Project Scaffold | Rust + wasm-pack + browser shell + CI + GitHub Pages | ✅ |
-| [1](TODO/done/phase-1.md) | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | ✅ |
-| [2](TODO/done/phase-2.md) | CPU + Timer + Interrupts + Serial Stub | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | ✅ |
-| [3a](TODO/done/phase-3a.md) | PPU Core | Scanline renderer, RGBA framebuffer, 2D canvas display | ✅ |
-| [3b](TODO/done/phase-3b.md) | WebGPU Renderer | Replace 2D canvas with WebGPU texture + fullscreen quad | ✅ |
-| [4](TODO/done/phase-4.md) | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | ✅ |
-| [5a](TODO/done/phase-5a.md) | APU Core | 4 channels, frame sequencer, step_samples | ✅ |
-| [5b](TODO/done/phase-5b.md) | Audio Clock | ScriptProcessorNode replaces rAF loop | ✅ |
-| [6](TODO/done/phase-6.md) | Web UI | Game Boy shell (DMG aesthetic), toolbar icons, play/pause, audio mute, zoom, hamburger menu, touch control stubs | ✅ |
-| [6b](TODO/done/phase-6b.md) | Web UI — Sample ROMs | Sample ROM dropdown bundled with the app | ✅ |
-| [6c](TODO/done/phase-6c.md) | Visual Polish | Shell sizing with zoom, A/B button slant, error message placement, branding | ✅ |
+| 0 | Project Scaffold | Rust + wasm-pack + browser shell + CI + GitHub Pages | ✅ |
+| 1 | Memory Bus + ROM Loading | Flat ROM only; no MBC yet | ✅ |
+| 2 | CPU + Timer + Interrupts + Serial Stub | LR35902, DIV/TIMA/TMA/TAC, IME, serial while CPU is hot | ✅ |
+| 3a | PPU Core | Scanline renderer, RGBA framebuffer, 2D canvas display | ✅ |
+| 3b | WebGPU Renderer | Replace 2D canvas with WebGPU texture + fullscreen quad | ✅ |
+| 4 | Cartridge + MBC Banking | MBC1/3/5, SRAM detection | ✅ |
+| 5a | APU Core | 4 channels, frame sequencer, step_samples | ✅ |
+| 5b | Audio Clock | ScriptProcessorNode replaces rAF loop | ✅ |
+| 6 | Web UI | Game Boy shell (DMG aesthetic), toolbar icons, play/pause, audio mute, zoom, hamburger menu, touch control stubs | ✅ |
+| 6b | Web UI — Sample ROMs | Sample ROM dropdown bundled with the app | ✅ |
+| 6c | Visual Polish | Shell sizing with zoom, A/B button slant, error message placement, branding | ✅ |
 | 7 | Joypad Input | Keyboard + gamepad + touch D-pad wired up | ✅ |
-| [7b](TODO/phase-7b.md) | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | 🔲 |
-| 8 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
-| 8b | Distribution | Release builds in preflight + CI, ZIP ROM loading, URL ROM loading (?rom=), Node.js version bump | 🔲 |
+| 7b | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | ✅ |
+| [8](TODO/phase-8.md) | Distribution | wasm-pack --release, esbuild minification, ZIP ROM loading via file picker | 🔲 |
+| 9 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
 | 10 | Game Boy Color | stretch | 🔲 |
 | 11 | Stretch Goals | Shaders, rewind, save states, debugger, link cable, YouTube/TikTok-ready demo | 🔲 |
 

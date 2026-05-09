@@ -137,13 +137,13 @@ Timeout: 120 frames for acceptance tests; 300 frames for mbc1/mbc5 tests.
 
 ## Tasks
 
-- [ ] 1. Create `crates/gpuboy-core/tests/blargg.rs` with `rom()` helper, `run_blargg()` helper, and 13 `#[test]` functions as listed in the ROM table above. *(req 1, 3)*
+- [x] 1. Create `crates/gpuboy-core/tests/blargg.rs` with `rom()` helper, `run_blargg()` helper, and 13 `#[test]` functions as listed in the ROM table above. *(req 1, 3)*
 
-- [ ] 2. Create `crates/gpuboy-core/tests/mooneye.rs` with `rom()` helper, `run_mooneye()` helper, `PASS` constant, and 96 `#[test]` functions. Pre-mark all 12 `boot_*` tests with `#[ignore] // boot ROM not implemented`. *(req 2, 3, 4)*
+- [x] 2. Create `crates/gpuboy-core/tests/mooneye.rs` with `rom()` helper, `run_mooneye()` helper, `PASS` constant, and 96 `#[test]` functions. Pre-mark all 12 `boot_*` tests with `#[ignore] // boot ROM not implemented`. *(req 2, 3, 4)*
 
-- [ ] 3. Josh runs `cargo test --test blargg -- --include-ignored` and `cargo test --test mooneye -- --include-ignored`; adds `#[ignore]` with a descriptive comment to every test that fails. *(req 4)*
+- [x] 3. Josh runs `cargo test --test blargg -- --include-ignored` and `cargo test --test mooneye -- --include-ignored`; adds `#[ignore]` with a descriptive comment to every test that fails. *(req 4)*
 
-- [ ] 4. Confirm `cargo test` (no flags) exits 0. Run `./preflight.sh` and confirm PASS. *(req 5)*
+- [x] 4. Confirm `cargo test` (no flags) exits 0. Run `./preflight.sh` and confirm PASS. *(req 5)*
 
 ## Manual Testing
 
@@ -154,4 +154,4 @@ Timeout: 120 frames for acceptance tests; 300 frames for mbc1/mbc5 tests.
 5. Run `./preflight.sh`. Confirm PASS.
 6. Spot-check: run `cargo test --test blargg cpu_instrs_06` (a likely-passing test). Confirm it passes individually.
 
-**Green light:** [ ]
+**Green light:** [x]
