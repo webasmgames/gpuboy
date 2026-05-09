@@ -230,3 +230,12 @@ pub fn set_volume(vol: f32) {
 pub fn set_paused(paused: bool) {
     PAUSED.with(|p| p.set(paused));
 }
+
+#[wasm_bindgen]
+pub fn set_buttons(pressed: u8) {
+    EMULATOR.with(|e| {
+        if let Some(emu) = e.borrow_mut().as_mut() {
+            emu.set_buttons(pressed);
+        }
+    });
+}

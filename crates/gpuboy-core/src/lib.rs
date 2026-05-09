@@ -55,6 +55,10 @@ impl Emulator {
     pub fn take_serial_output(&mut self) -> Vec<u8> {
         self.bus.take_serial_output()
     }
+
+    pub fn set_buttons(&mut self, pressed: u8) {
+        self.bus.set_joypad_buttons(pressed);
+    }
 }
 
 #[cfg(test)]

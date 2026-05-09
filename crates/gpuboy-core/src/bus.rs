@@ -3,6 +3,47 @@ use crate::cartridge::Cartridge;
 use crate::ppu::Ppu;
 use crate::timer::Timer;
 
+struct Joypad {
+    pressed: u8, // 1=pressed: bit0=A bit1=B bit2=Sel bit3=Start bit4=Right bit5=Left bit6=Up bit7=Down
+    select: u8,  // bits 5-4 from last write to 0xFF00; default 0x30
+}
+
+impl Joypad {
+    fn new() -> Self {
+        Joypad {
+            pressed: 0,
+            select: 0x30,
+        }
+    }
+
+    fn read_output(&self) -> u8 {
+        let mut result = 0x0F;
+        // P15 clear (bit 5 of select) → action row selected
+        if self.select & 0x20 == 0 {
+            let a = self.pressed & 1;
+            let b = (self.pressed >> 1) & 1;
+            let sel = (self.pressed >> 2) & 1;
+            let start = (self.pressed >> 3) & 1;
+            let row = (start << 3) | (sel << 2) | (b << 1) | a;
+            result &= (!row) & 0x0F;
+        }
+        // P14 clear (bit 4 of select) → direction row selected
+        if self.select & 0x10 == 0 {
+            let right = (self.pressed >> 4) & 1;
+            let left = (self.pressed >> 5) & 1;
+            let up = (self.pressed >> 6) & 1;
+            let down = (self.pressed >> 7) & 1;
+            let row = (down << 3) | (up << 2) | (left << 1) | right;
+            result &= (!row) & 0x0F;
+        }
+        result
+    }
+
+    fn read_full(&self) -> u8 {
+        0xC0 | (self.select & 0x30) | self.read_output()
+    }
+}
+
 pub struct Bus {
     cartridge: Cartridge,
     wram: [u8; 0x2000],
@@ -12,6 +53,7 @@ pub struct Bus {
     pub apu: Apu,
     vram: [u8; 0x2000],
     oam: [u8; 0xA0],
+    joypad: Joypad,
     sb: u8,
     sc: u8,
     interrupt_flags: u8, // 0xFF0F — IF register (bits 4-0)
@@ -30,6 +72,7 @@ impl Bus {
             apu: Apu::new(44100.0),
             vram: [0; 0x2000],
             oam: [0; 0xA0],
+            joypad: Joypad::new(),
             sb: 0,
             sc: 0,
             interrupt_flags: 0,
@@ -45,6 +88,7 @@ impl Bus {
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize],
             0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize],
             0xFE00..=0xFE9F => self.oam[(addr - 0xFE00) as usize],
+            0xFF00 => self.joypad.read_full(),
             0xFF01 => self.sb,
             0xFF02 => self.sc,
             0xFF04..=0xFF07 => self.timer.read(addr),
@@ -76,6 +120,7 @@ impl Bus {
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = val,
             0xE000..=0xFDFF => self.wram[(addr - 0xE000) as usize] = val,
             0xFE00..=0xFE9F => self.oam[(addr - 0xFE00) as usize] = val,
+            0xFF00 => self.joypad.select = val & 0x30,
             0xFF01 => self.sb = val,
             0xFF02 => {
                 if val & 0x80 != 0 {
@@ -151,6 +196,16 @@ impl Bus {
     pub fn take_serial_output(&mut self) -> Vec<u8> {
         std::mem::take(&mut self.serial_buf)
     }
+
+    pub fn set_joypad_buttons(&mut self, pressed: u8) {
+        let old_output = self.joypad.read_output();
+        self.joypad.pressed = pressed;
+        let new_output = self.joypad.read_output();
+        // Any output bit 1→0 (inactive→active) fires the joypad interrupt (IF bit 4)
+        if old_output & !new_output != 0 {
+            self.interrupt_flags |= 1 << 4;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -195,7 +250,54 @@ mod tests {
     #[test]
     fn unmapped_reads_ff() {
         let bus = test_bus();
+        // select=0x30 (no row selected), no buttons pressed → 0xC0|0x30|0x0F = 0xFF
         assert_eq!(bus.read(0xFF00), 0xFF);
+    }
+
+    #[test]
+    fn joypad_direction_row_read() {
+        let mut bus = test_bus();
+        // Select direction row: bit4 clear (P14 low), bit5 set (P15 high)
+        bus.write(0xFF00, 0x20);
+        bus.set_joypad_buttons(1 << 4); // Right pressed
+                                        // active-low: Right=1, others 0 → row=0b0001 → !row&0x0F=0x0E
+                                        // read_full = 0xC0 | 0x20 | 0x0E = 0xEE
+        assert_eq!(bus.read(0xFF00), 0xEE);
+    }
+
+    #[test]
+    fn joypad_action_row_read() {
+        let mut bus = test_bus();
+        // Select action row: bit5 clear (P15 low), bit4 set (P14 high)
+        bus.write(0xFF00, 0x10);
+        bus.set_joypad_buttons(1 << 0); // A pressed
+                                        // active-low: A=1, others 0 → row=0b0001 → !row&0x0F=0x0E
+                                        // read_full = 0xC0 | 0x10 | 0x0E = 0xDE
+        assert_eq!(bus.read(0xFF00), 0xDE);
+    }
+
+    #[test]
+    fn joypad_interrupt_fires_on_press() {
+        let mut bus = test_bus();
+        bus.write(0xFF00, 0x20); // direction row selected
+        bus.set_joypad_buttons(1 << 4); // Right pressed: output 0x0F → 0x0E
+        assert!(
+            bus.if_reg() & 0x10 != 0,
+            "joypad interrupt (IF bit 4) should fire on press"
+        );
+    }
+
+    #[test]
+    fn joypad_interrupt_does_not_fire_on_release() {
+        let mut bus = test_bus();
+        bus.write(0xFF00, 0x20);
+        bus.set_joypad_buttons(1 << 4); // press
+        bus.write(0xFF0F, 0x00); // clear IF
+        bus.set_joypad_buttons(0); // release: output 0x0E → 0x0F (0→1, not 1→0)
+        assert!(
+            bus.if_reg() & 0x10 == 0,
+            "joypad interrupt should not fire on release"
+        );
     }
 
     #[test]

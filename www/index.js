@@ -1,5 +1,5 @@
 import init, { run, load_rom, init_renderer, render_frame_wgpu, start_audio,
-               set_volume, set_paused }
+               set_volume, set_paused, set_buttons }
     from "../pkg/gpuboy_wasm.js";
 
 function render2d(ctx2d, fb) {
@@ -132,6 +132,107 @@ async function main() {
             gbMenu.classList.add('hidden');
         });
     });
+
+    // ── Input ──────────────────────────────────────────────────────────────────
+
+    let joyBits = 0;
+    let touchBits = 0;
+    let gamepadBits = 0;
+
+    // bit0=A bit1=B bit2=Sel bit3=Start bit4=Right bit5=Left bit6=Up bit7=Down
+    const KEY_MAP = {
+        'KeyW':       1 << 6,
+        'KeyA':       1 << 5,
+        'KeyS':       1 << 7,
+        'KeyD':       1 << 4,
+        'ArrowRight': 1 << 0,
+        'ArrowLeft':  1 << 1,
+        'ArrowDown':  1 << 3,
+        'ArrowUp':    1 << 2,
+    };
+
+    function syncButtons() {
+        set_buttons(joyBits | touchBits | gamepadBits);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+        const bit = KEY_MAP[e.code];
+        if (bit !== undefined) {
+            e.preventDefault();
+            joyBits |= bit;
+            syncButtons();
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+        const bit = KEY_MAP[e.code];
+        if (bit !== undefined) {
+            joyBits &= ~bit;
+            syncButtons();
+        }
+    });
+
+    // On-screen buttons
+    const TOUCH_MAP = {
+        'dpad-up':    1 << 6,
+        'dpad-down':  1 << 7,
+        'dpad-left':  1 << 5,
+        'dpad-right': 1 << 4,
+        'btn-a':      1 << 0,
+        'btn-b':      1 << 1,
+        'btn-select': 1 << 2,
+        'btn-start':  1 << 3,
+    };
+
+    for (const [id, bit] of Object.entries(TOUCH_MAP)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            el.setPointerCapture(e.pointerId);
+            touchBits |= bit;
+            syncButtons();
+        });
+        el.addEventListener('pointerup', () => {
+            touchBits &= ~bit;
+            syncButtons();
+        });
+        el.addEventListener('pointercancel', () => {
+            touchBits &= ~bit;
+            syncButtons();
+        });
+    }
+
+    // Gamepad polling via RAF
+    function pollGamepad() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let bits = 0;
+        for (const gp of gamepads) {
+            if (!gp) continue;
+            const B = gp.buttons;
+            if (B[0]?.pressed)  bits |= 1 << 0;  // A
+            if (B[1]?.pressed)  bits |= 1 << 1;  // B
+            if (B[8]?.pressed)  bits |= 1 << 2;  // Select
+            if (B[9]?.pressed)  bits |= 1 << 3;  // Start
+            if (B[12]?.pressed) bits |= 1 << 6;  // Up
+            if (B[13]?.pressed) bits |= 1 << 7;  // Down
+            if (B[14]?.pressed) bits |= 1 << 5;  // Left
+            if (B[15]?.pressed) bits |= 1 << 4;  // Right
+            // Analog stick fallback
+            if (gp.axes[0] >  0.5) bits |= 1 << 4;  // Right
+            if (gp.axes[0] < -0.5) bits |= 1 << 5;  // Left
+            if (gp.axes[1] >  0.5) bits |= 1 << 7;  // Down
+            if (gp.axes[1] < -0.5) bits |= 1 << 6;  // Up
+        }
+        gamepadBits = bits;
+        syncButtons();
+        requestAnimationFrame(pollGamepad);
+    }
+    requestAnimationFrame(pollGamepad);
+
+    // ── Sample ROM buttons ─────────────────────────────────────────────────────
 
     // Sample ROM buttons
     const menuRoms = document.getElementById('menu-roms');

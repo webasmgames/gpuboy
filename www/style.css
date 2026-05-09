@@ -215,6 +215,7 @@ body {
     border-radius: 3px;
     cursor: pointer;
     padding: 0;
+    touch-action: none;
 }
 
 #dpad-up:hover, #dpad-left:hover, #dpad-right:hover, #dpad-down:hover {
@@ -274,6 +275,7 @@ body {
     font-size: 11px;
     letter-spacing: 0.06em;
     font-weight: 600;
+    touch-action: none;
 }
 
 #btn-select:hover, #btn-start:hover { background: #888; }
@@ -300,6 +302,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    touch-action: none;
 }
 
 #btn-a:hover, #btn-b:hover { background: var(--gb-accent-dark); }
