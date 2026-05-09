@@ -102,9 +102,31 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .gb-menu.hidden { display: none; }
+
+.menu-sep { border: none; border-top: 1px solid #555; margin: 4px 0; }
+.menu-roms-label { font-size: 0.7rem; color: var(--gb-text-dim); padding: 2px 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+#menu-roms button {
+    background: transparent;
+    border: none;
+    color: var(--gb-text);
+    cursor: pointer;
+    padding: 8px 12px;
+    text-align: left;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    width: 100%;
+}
+
+#menu-roms button:hover {
+    background: rgba(255,255,255,0.1);
+}
 
 .gb-menu > button {
     background: transparent;

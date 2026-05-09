@@ -7,6 +7,14 @@ function render2d(ctx2d, fb) {
     ctx2d.putImageData(imageData, 0, 0);
 }
 
+const SAMPLE_ROMS = [
+    { name: 'cpu_instrs (Blargg)',  url: 'https://raw.githubusercontent.com/retrio/gb-test-roms/master/cpu_instrs/cpu_instrs.gb' },
+    { name: 'mem_timing (Blargg)',  url: 'https://raw.githubusercontent.com/retrio/gb-test-roms/master/mem_timing/mem_timing.gb' },
+    { name: 'Fairy Lake (Hacktix)', url: 'https://raw.githubusercontent.com/Hacktix/scribbltests/master/fairylake/fairylake.gb' },
+];
+
+let romLoading = false;
+
 async function main() {
     await init();
     run();
@@ -30,6 +38,21 @@ async function main() {
     document.getElementById('screen').style.display    = useWebGpu ? 'block' : 'none';
     document.getElementById('screen-2d').style.display = useWebGpu ? 'none'  : 'block';
     const ctx2d = document.getElementById('screen-2d').getContext('2d');
+
+    function loadRomBytes(data) {
+        const errEl = document.getElementById('error');
+        if (errEl) errEl.style.display = 'none';
+        load_rom(data);
+        // start_audio is idempotent; creates AudioContext + GainNode + ScriptProcessorNode in Rust.
+        // The callback receives a Uint8Array framebuffer once per audio buffer (~10.7×/sec).
+        start_audio((fb) => {
+            if (useWebGpu) {
+                render_frame_wgpu(fb);
+            } else {
+                render2d(ctx2d, fb);
+            }
+        });
+    }
 
     // Renderer toggle in hamburger menu
     const menuRenderer = document.getElementById('menu-renderer');
@@ -57,17 +80,7 @@ async function main() {
         const reader = new FileReader();
         reader.onerror = (ev) => console.error('FileReader error:', ev.target.error);
         reader.onload = (ev) => {
-            const data = new Uint8Array(ev.target.result);
-            load_rom(data);
-            // start_audio is idempotent; creates AudioContext + GainNode + ScriptProcessorNode in Rust.
-            // The callback receives a Uint8Array framebuffer once per audio buffer (~10.7×/sec).
-            start_audio((fb) => {
-                if (useWebGpu) {
-                    render_frame_wgpu(fb);
-                } else {
-                    render2d(ctx2d, fb);
-                }
-            });
+            loadRomBytes(new Uint8Array(ev.target.result));
         };
         reader.readAsArrayBuffer(file);
     });
@@ -118,6 +131,35 @@ async function main() {
             gbMenu.classList.add('hidden');
         });
     });
+
+    // Sample ROM buttons
+    const menuRoms = document.getElementById('menu-roms');
+    for (const entry of SAMPLE_ROMS) {
+        const btn = document.createElement('button');
+        btn.textContent = entry.name;
+        btn.addEventListener('click', async () => {
+            if (romLoading) return;
+            romLoading = true;
+            btn.textContent = 'Loading…';
+            try {
+                const resp = await fetch(entry.url);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const buf = await resp.arrayBuffer();
+                loadRomBytes(new Uint8Array(buf));
+                gbMenu.classList.add('hidden');
+            } catch (err) {
+                const errEl = document.getElementById('error');
+                if (errEl) {
+                    errEl.textContent = `Failed to load ${entry.name}: ${err.message}`;
+                    errEl.style.display = 'block';
+                }
+            } finally {
+                btn.textContent = entry.name;
+                romLoading = false;
+            }
+        });
+        menuRoms.appendChild(btn);
+    }
 }
 
 main().catch((err) => {

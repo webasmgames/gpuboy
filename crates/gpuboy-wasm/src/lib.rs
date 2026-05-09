@@ -150,7 +150,7 @@ pub fn start_audio(on_frame: js_sys::Function) -> Result<(), JsValue> {
         return Ok(());
     }
 
-    let mut opts = web_sys::AudioContextOptions::new();
+    let opts = web_sys::AudioContextOptions::new();
     opts.set_sample_rate(44100.0);
     let ctx = web_sys::AudioContext::new_with_context_options(&opts)?;
 

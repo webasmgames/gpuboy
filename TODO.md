@@ -19,7 +19,8 @@ Accurate DMG emulation at 60fps with audio, validated against standard test ROM 
 | 5a | APU Core | 4 channels, frame sequencer, step_samples | ✅ |
 | 5b | Audio Clock | ScriptProcessorNode replaces rAF loop | ✅ |
 | 6 | Web UI | Game Boy shell (DMG aesthetic), toolbar icons, play/pause, audio mute, zoom, hamburger menu, touch control stubs | ✅ |
-| 6b | Web UI — Sample ROMs | Sample ROM dropdown bundled with the app | 🔲 |
+| 6b | Web UI — Sample ROMs | Sample ROM dropdown bundled with the app | ✅ |
+| [6c](TODO/phase-6c.md) | Visual Polish | Shell sizing with zoom, A/B button slant, error message placement, branding | 🔲 |
 | 7 | Joypad Input | Keyboard + gamepad + touch D-pad wired up | 🔲 |
 | 7b | Test ROM Validation | Blargg suite headless in cargo test; Mooneye where feasible | 🔲 |
 | 8 | Save Data | IndexedDB keyed by ROM checksum, .sav export/import | 🔲 |
